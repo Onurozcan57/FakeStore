@@ -16,4 +16,8 @@ class UserRepositoryImpl @Inject constructor(
     override suspend fun getUsers(): List<UserDto> {
         return apiService.getUsers().users
     }
+
+    override suspend fun getUser(id: Int): UserDto {
+        return apiService.getUser(id)
+    }
 }

@@ -30,11 +30,14 @@ class LoginViewModel @Inject constructor(
             
             try {
                 // Sunucuya login isteği gönderiyorum
-                val user = userRepository.login(LoginRequest(username, password))
+                val loginResponse = userRepository.login(LoginRequest(username, password))
+                
+                // Login yanıtında banka bilgileri eksik olduğu için full profili çekiyoruz
+                val fullUser = userRepository.getUser(loginResponse.id)
                 
                 // İstek başarılı olduysa kullanıcı bilgileri dönecektir
-                userSession.saveSession(user)
-                _state.value = LoginState(successUser = user)
+                userSession.saveSession(fullUser)
+                _state.value = LoginState(successUser = fullUser)
             } catch (e: Exception) {
                 // Hatalı şifre veya ağ hatası durumunda buraya düşer
                 _state.value = LoginState(error = "Giriş başarısız: Bilgilerinizi kontrol edin.")

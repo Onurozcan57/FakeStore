@@ -91,11 +91,11 @@ fun LoginScreen(
 
         // Hata Mesajı Gösterimi
         state.error?.let {
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(30 .dp))
             Text(
                 text = it,
                 color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodyMedium
+                style = MaterialTheme.typography.titleMedium
             )
         }
     }

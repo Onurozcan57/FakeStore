@@ -1,7 +1,9 @@
 package com.example.apicalling.ui.profile
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExitToApp
@@ -10,13 +12,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.apicalling.ui.theme.APIcallingTheme
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
     viewModel: ProfileViewModel? = null,
@@ -24,89 +26,121 @@ fun ProfileScreen(
 ) {
     val user = viewModel?.user?.value
 
-    Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text("Profilim") },
-                actions = {
-                    IconButton(onClick = {
-                        viewModel?.logout()
-                        onLogout()
-                    }) {
-                        Icon(Icons.Default.ExitToApp, contentDescription = "Çıkış Yap")
-                    }
-                }
-            )
-        }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState()),
-            horizontalAlignment = Alignment.CenterHorizontally
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // Header Kısmı (TopBar yerine daha yukarıda durması için manuel ekledik)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // Profil Resmi Yerine İkon (Şimdilik)
-            Icon(
-                imageVector = Icons.Default.Person,
-                contentDescription = null,
-                modifier = Modifier.size(100.dp),
-                tint = MaterialTheme.colorScheme.primary
+            Text(
+                text = "Profilim",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = Color.Black
             )
+            IconButton(onClick = {
+                viewModel?.logout()
+                onLogout()
+            }) {
+                Icon(Icons.Default.ExitToApp, contentDescription = "Çıkış Yap")
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Profil Resmi Yerine İkon
+        Icon(
+            imageVector = Icons.Default.Person,
+            contentDescription = null,
+            modifier = Modifier.size(100.dp),
+            tint = MaterialTheme.colorScheme.primary
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        user?.let {
+            Text(
+                text = "${it.firstName} ${it.lastName}",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = it.email,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            // Kişisel Bilgiler Kartı
+            InfoCard(title = "Kişisel Bilgiler") {
+                InfoRow(label = "Kullanıcı Adı", value = it.username)
+                InfoRow(label = "E-posta", value = it.email)
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            user?.let {
-                Text(
-                    text = "${it.firstName} ${it.lastName}",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = it.email,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                Spacer(modifier = Modifier.height(32.dp))
-
-                // Kişisel Bilgiler Kartı
-                InfoCard(title = "Kişisel Bilgiler") {
-                    InfoRow(label = "Kullanıcı Adı", value = it.username)
-                    InfoRow(label = "E-posta", value = it.email)
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Banka Bilgileri Kartı (Ödeme kısmı için önemli)
+            // Banka Bilgileri Kartı (Ödeme kısmı için önemli)
+            it.bank?.let { bank ->
                 InfoCard(title = "Banka & Kart Bilgileri") {
-                    InfoRow(label = "Kart Numarası", value = it.bank.cardNumber)
-                    InfoRow(label = "Kart Tipi", value = it.bank.cardType)
-                    InfoRow(label = "Son Kullanma", value = it.bank.cardExpire)
-                    InfoRow(label = "Para Birimi", value = it.bank.currency)
+                    InfoRow(label = "Kart Numarası", value = bank.cardNumber)
+                    InfoRow(label = "Kart Tipi", value = bank.cardType)
+                    InfoRow(label = "Son Kullanma", value = bank.cardExpire)
+                    InfoRow(label = "Para Birimi", value = bank.currency)
                 }
-            } ?: run {
-                Text("Kullanıcı bilgisi bulunamadı.")
             }
+        } ?: run {
+            Text("Kullanıcı bilgisi bulunamadı.")
         }
+        
+        // Bottom Bar padding'i için ekstra boşluk
+        Spacer(modifier = Modifier.height(16.dp))
     }
 }
 
 @Composable
-fun InfoCard(title: String, content: @Composable ColumnScope.() -> Unit) {
+fun InfoCard(
+    title: String,
+    content: @Composable ColumnScope.() -> Unit
+) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp),
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outline
+        ),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 4.dp
+        )
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
             )
-            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+
             content()
         }
     }

@@ -6,4 +6,5 @@ import com.example.apicalling.data.model.UserDto
 interface UserRepository {
     suspend fun login(request: LoginRequest): UserDto
     suspend fun getUsers(): List<UserDto>
+    suspend fun getUser(id: Int): UserDto
 }

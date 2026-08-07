@@ -15,6 +15,9 @@ interface ApiService {
     @GET("users")
     suspend fun getUsers(): UserListResponse
 
+    @GET("users/{id}")
+    suspend fun getUser(@retrofit2.http.Path("id") id: Int): UserDto
+
     @GET("products")
     suspend fun getProducts(): ProductListResponse
 

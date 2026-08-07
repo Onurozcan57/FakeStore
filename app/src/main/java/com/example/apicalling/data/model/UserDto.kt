@@ -9,12 +9,12 @@ data class UserListResponse(
 data class UserDto(
     @SerializedName("id") val id: Int,
     @SerializedName("username") val username: String,
-    @SerializedName("password") val password: String,
+    @SerializedName("password") val password: String? = null,
     @SerializedName("firstName") val firstName: String,
     @SerializedName("lastName") val lastName: String,
     @SerializedName("email") val email: String,
     @SerializedName("image") val image: String,
-    @SerializedName("bank") val bank: BankDto
+    @SerializedName("bank") val bank: BankDto? = null
 )
 
 data class BankDto(
