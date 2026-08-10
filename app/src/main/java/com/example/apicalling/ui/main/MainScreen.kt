@@ -27,7 +27,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.apicalling.ui.cart.CartViewModel
 import com.example.apicalling.ui.navigation.Screen
+import com.example.apicalling.ui.product.ProductScreen
 import com.example.apicalling.ui.product.ProductViewModel
 import com.example.apicalling.ui.profile.ProfileScreen
 import com.example.apicalling.ui.profile.ProfileViewModel
@@ -43,6 +45,8 @@ fun MainScreen(
     onLogout: () -> Unit
 ) {
     val navController = rememberNavController()
+    val cartViewModel: CartViewModel = hiltViewModel()
+
     val items = listOf(
         BottomNavItem.Home,
         BottomNavItem.Market,
@@ -50,16 +54,16 @@ fun MainScreen(
     )
 
     Scaffold(
-        containerColor = Color(0xFFF5F7FA),
+        containerColor = Color.Transparent, // Şeffaf arka plan
         modifier = Modifier.fillMaxSize(),
         bottomBar = {
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                    .padding(horizontal = 16.dp, vertical = 16.dp), // Biraz daha yukarı aldık
                 shape = RoundedCornerShape(28.dp),
                 shadowElevation = 12.dp,
-                color = MaterialTheme.colorScheme.surface
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f) // Hafif şeffaflık kattık
             ) {
                 NavigationBar(
                     containerColor = Color.Transparent,
@@ -129,14 +133,13 @@ fun MainScreen(
 
         }
     ) { innerPadding ->
-        // innerPadding sadece BottomBar ve TopBar (eğer varsa) alanlarını yönetir.
-        // NavHost'a padding olarak verdiğimizde içerik bu alanların içinde kalır.
+        // innerPadding.calculateBottomPadding()'i kullanmayarak içeriği barın altına kadar uzatıyoruz
         NavHost(
             navController = navController,
             startDestination = Screen.Home.route,
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
+                .padding(top = innerPadding.calculateTopPadding()) // Sadece üst boşluğu koruyoruz
         ) {
             composable(Screen.Home.route) {
                 // Ana Sayfa İçeriği
@@ -148,13 +151,14 @@ fun MainScreen(
                 }
             }
             composable(Screen.Market.route) {
-                // Market İçeriği
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    val viewModel: ProductViewModel = hiltViewModel()
-                }
+                val viewModel: ProductViewModel = hiltViewModel()
+                ProductScreen(
+                    viewModel = viewModel,
+                    cartItemCount = cartViewModel.cartItems.size,
+                    onAddToCart = { product ->
+                        cartViewModel.addToCart(product)
+                    }
+                )
             }
             composable(Screen.Profile.route) {
                 val viewModel: ProfileViewModel = hiltViewModel()
