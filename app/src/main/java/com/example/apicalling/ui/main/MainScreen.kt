@@ -2,8 +2,11 @@ package com.example.apicalling.ui.main
 
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -11,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.ShoppingCartCheckout
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -28,6 +32,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.apicalling.ui.cart.CartViewModel
+import com.example.apicalling.ui.home.HomeScreen
 import com.example.apicalling.ui.navigation.Screen
 import com.example.apicalling.ui.product.ProductScreen
 import com.example.apicalling.ui.product.ProductViewModel
@@ -36,7 +41,7 @@ import com.example.apicalling.ui.profile.ProfileViewModel
 
 sealed class BottomNavItem(val route: String, val title: String, val icon: ImageVector) {
     object Home : BottomNavItem(Screen.Home.route, "Ana Sayfa", Icons.Default.Home)
-    object Market : BottomNavItem(Screen.Market.route, "Market", Icons.Default.ShoppingCart)
+    object Cart : BottomNavItem(Screen.Cart.route, "Sepet", Icons.Default.ShoppingCart)
     object Profile : BottomNavItem(Screen.Profile.route, "Profil", Icons.Default.Person)
 }
 
@@ -49,7 +54,7 @@ fun MainScreen(
 
     val items = listOf(
         BottomNavItem.Home,
-        BottomNavItem.Market,
+        BottomNavItem.Cart,
         BottomNavItem.Profile
     )
 
@@ -60,14 +65,16 @@ fun MainScreen(
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 16.dp), // Biraz daha yukarı aldık
+                    .padding(start = 16.dp, end = 16.dp, bottom = 20.dp), // Alt boşluğu optimize ettik
                 shape = RoundedCornerShape(28.dp),
                 shadowElevation = 12.dp,
-                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f) // Hafif şeffaflık kattık
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
             ) {
                 NavigationBar(
                     containerColor = Color.Transparent,
-                    tonalElevation = 0.dp
+                    tonalElevation = 0.dp,
+                    windowInsets = WindowInsets(0, 0, 0, 0), // Sistem barı boşluğunu kaldırır
+                    modifier = Modifier.height(70.dp) // Bar boyutu küçültüldü (Standart 80dp'den 64dp'ye)
                 ) {
 
                     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -100,11 +107,21 @@ fun MainScreen(
                             },
 
                             icon = {
-                                Icon(
-                                    imageVector = item.icon,
-                                    contentDescription = item.title,
-                                    modifier = Modifier.size(iconSize)
-                                )
+                                BadgedBox(
+                                    badge = {
+                                        if (item is BottomNavItem.Cart && cartViewModel.cartItems.isNotEmpty()) {
+                                            Badge {
+                                                Text(text = cartViewModel.cartItems.size.toString())
+                                            }
+                                        }
+                                    }
+                                ) {
+                                    Icon(
+                                        imageVector = item.icon,
+                                        contentDescription = item.title,
+                                        modifier = Modifier.size(iconSize)
+                                    )
+                                }
                             },
 
                             label = {
@@ -133,32 +150,30 @@ fun MainScreen(
 
         }
     ) { innerPadding ->
-        // innerPadding.calculateBottomPadding()'i kullanmayarak içeriği barın altına kadar uzatıyoruz
+        // topPadding'i kaldırıyoruz, böylece içerik ekranın en tepesine kadar gidebilir.
+        // Sadece alt padding'i (bottom bar için) her sayfanın kendi içinde yönetmesini sağlayacağız.
         NavHost(
             navController = navController,
             startDestination = Screen.Home.route,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(top = innerPadding.calculateTopPadding()) // Sadece üst boşluğu koruyoruz
+            modifier = Modifier.fillMaxSize()
         ) {
             composable(Screen.Home.route) {
-                // Ana Sayfa İçeriği
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(text = "Ana Sayfa - Yakında burada kampanyalar olacak!")
-                }
-            }
-            composable(Screen.Market.route) {
-                val viewModel: ProductViewModel = hiltViewModel()
-                ProductScreen(
-                    viewModel = viewModel,
-                    cartItemCount = cartViewModel.cartItems.size,
+                val productViewModel: ProductViewModel = hiltViewModel()
+                HomeScreen(
+                    productState = productViewModel.state.value,
                     onAddToCart = { product ->
                         cartViewModel.addToCart(product)
                     }
                 )
+            }
+            composable(Screen.Cart.route) {
+                // Sepet İçeriği
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(text = "Sepet Sayfası - Yakında burada ürünlerinizi göreceksiniz!")
+                }
             }
             composable(Screen.Profile.route) {
                 val viewModel: ProfileViewModel = hiltViewModel()
