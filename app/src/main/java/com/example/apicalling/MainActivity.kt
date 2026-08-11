@@ -6,26 +6,29 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
-import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.apicalling.data.session.UserSession
 import com.example.apicalling.ui.login.LoginScreen
 import com.example.apicalling.ui.login.LoginViewModel
 import com.example.apicalling.ui.main.MainScreen
 import com.example.apicalling.ui.navigation.Screen
 import com.example.apicalling.ui.theme.APIcallingTheme
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    
+    // Oturum yönetimini enjekte ediyoruz
+    @Inject
+    lateinit var userSession: UserSession
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -34,6 +37,9 @@ class MainActivity : ComponentActivity() {
             APIcallingTheme {
                 val navController = rememberNavController()
                 val context = LocalContext.current
+
+                // Başlangıç rotasını kullanıcı durumuna göre seçiyoruz (Terminoloji: Session Routing)
+                val startRoute = if (userSession.isLoggedIn()) Screen.Main.route else Screen.Login.route
                 
                 Surface(
                     modifier = Modifier.fillMaxSize(),
@@ -41,7 +47,7 @@ class MainActivity : ComponentActivity() {
                 ) {
                     NavHost(
                         navController = navController,
-                        startDestination = Screen.Login.route
+                        startDestination = startRoute
                     ) {
                         composable(Screen.Login.route) {
                             val viewModel: LoginViewModel = hiltViewModel()
@@ -58,6 +64,7 @@ class MainActivity : ComponentActivity() {
                         composable(Screen.Main.route) {
                             MainScreen(
                                 onLogout = {
+                                    userSession.clearSession() // Hafızayı temizle
                                     navController.navigate(Screen.Login.route) {
                                         popUpTo(Screen.Main.route) { inclusive = true }
                                     }

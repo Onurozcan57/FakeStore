@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Android 12+ Splash Screen Özelleştirmesi -->
+    <style name="Theme.APIcalling" parent="android:Theme.Material.Light.NoActionBar">
+        <!-- Arka planı bembeyaz yapıyoruz -->
+        <item name="android:windowSplashScreenBackground">#FFFFFF</item>
+        <!-- İkon olarak sadece senin logonu (arkasında renk olmadan) kullanıyoruz -->
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/fakelogo</item>
+    </style>
+</resources>

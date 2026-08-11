@@ -67,7 +67,7 @@ fun MainScreen(
     val showBottomBar = currentDestination?.route != Screen.ProductDetail.route
 
     Scaffold(
-        containerColor = Color.Transparent, // Şeffaf arka plan
+        containerColor = MaterialTheme.colorScheme.background, // Beyaz arka plan
         modifier = Modifier.fillMaxSize(),
         bottomBar = {
             if (showBottomBar) {

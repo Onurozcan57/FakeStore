@@ -13,7 +13,7 @@ class ProfileViewModel @Inject constructor(
     private val userSession: UserSession
 ) : ViewModel() {
 
-    private val _user = mutableStateOf<UserDto?>(userSession.user)
+    private val _user = mutableStateOf<UserDto?>(userSession.user.value)
     val user: State<UserDto?> = _user
 
     /**

@@ -159,7 +159,7 @@ fun ProductDetailScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .fillMaxHeight(0.4f)
-                            .background(Color(0xFFF5F5F5)) // Gri arka plan
+                            .background(MaterialTheme.colorScheme.surface) // Temadaki yüzey rengi
                     )
 
                     // 2. Ürün Bilgileri (Terminoloji: Product Info Section)

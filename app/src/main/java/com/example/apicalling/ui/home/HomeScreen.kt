@@ -29,19 +29,23 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.example.apicalling.R
 import com.example.apicalling.ui.theme.APIcallingTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 import com.example.apicalling.data.model.ProductDto
+import com.example.apicalling.ui.components.ProductCardV1
 import com.example.apicalling.ui.components.ProductCardV2
 import com.example.apicalling.ui.product.ProductState
 
 data class Category(
     val title: String,
-    val icon: ImageVector,
-    val backgroundColor: Color = Color.White
+    val imageUrl: String,
+    val slug: String
 )
+
+data class PromoItem(val title: String, val imageUrl: String)
 
 /**
  * Yeni Ana Sayfa tasarımı.
@@ -54,31 +58,42 @@ fun HomeScreen(
 ) {
     var searchQuery by remember { mutableStateOf("") }
 
-    // Kampanyalı ürünler için filtreleme (Örn: "beauty" kategorisinden ilk 10 ürün)
+    // Günün Fırsatları için Rastgele 26 Ürün Seçimi
+    val randomProducts = remember(productState.products) {
+        productState.products.shuffled().take(26)
+    }
+
+    // Dinamik Kategoriler (Terminoloji: Derived Dynamic Categories)
+    // Ürünlerden kategorileri ve ilk resimlerini türetiyoruz.
+    val dynamicCategories = remember(productState.products) {
+        productState.products
+            .groupBy { it.category }
+            .map { (categoryName, products) ->
+                Category(
+                    title = categoryName.replaceFirstChar { it.uppercase() },
+                    imageUrl = products.firstOrNull()?.thumbnail ?: "",
+                    slug = categoryName
+                )
+            }
+    }
+
+    // Kampanyalı ürünler (V2 kartlar için - Beauty kategorisi)
     val discountedProducts = productState.products
         .filter { it.category == "beauty" }
         .take(10)
     
-    // Kampanya resimleri listesi
+    // Kampanya resimleri listesi (Yerel kaynaklar)
     val campaignImages = listOf(
-        "https://via.placeholder.com/600x200/FF5722/FFFFFF?text=Kampanya+1",
-        "https://via.placeholder.com/600x200/2196F3/FFFFFF?text=Kampanya+2",
-        "https://via.placeholder.com/600x200/4CAF50/FFFFFF?text=Kampanya+3"
-    )
-
-    val categories = listOf(
-        Category("Tüm\nKampanyalar", Icons.Default.Percent, Color(0xFFFF9800)),
-        Category("Kategoriler", Icons.Default.Category, Color(0xFF2196F3)),
-        Category("Giyim\nAyakkabı", Icons.Default.Checkroom, Color(0xFFE91E63)),
-        Category("Telefon", Icons.Default.Devices, Color(0xFF9C27B0)),
-        Category("Ev Yaşam", Icons.Default.Home, Color(0xFF4CAF50)),
-        Category("Beyaz Eşya", Icons.Default.Kitchen, Color(0xFF607D8B))
+        R.drawable.kampanya_2,
+        R.drawable.kampanya_1,
+        R.drawable.kampanya_3,
+        R.drawable.kampanya_4
     )
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF5F5F5))
+            .background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState())
     ) {
         // Mavi Arka Planlı Header
@@ -117,13 +132,15 @@ fun HomeScreen(
             }
         }
 
-        // Kampanya Slider
+        // Kampanya Slider (Carousel)
         CampaignSlider(images = campaignImages)
 
-        // Kategoriler Alanı
-        CategorySection(categories = categories)
+        // Dinamik Kategoriler Alanı (Terminoloji: Integrated Category Cards)
+        if (dynamicCategories.isNotEmpty()) {
+            CategorySection(categories = dynamicCategories)
+        }
 
-        // Kampanyadaki Ürünler Bölümü
+        // Kampanyadaki Ürünler (V2 Tasarım - Detailed Cards)
         if (discountedProducts.isNotEmpty()) {
             HorizontalProductSection(
                 title = "Kampanyadaki Ürünler",
@@ -133,7 +150,7 @@ fun HomeScreen(
             )
         }
 
-        // Sana Özel Kampanyalar Bölümü (Yeni - Promo Section)
+        // Sana Özel Kampanyalar (Promo Section)
         PromoSection(
             title = "Sana Özel Kampanyalar",
             promos = listOf(
@@ -145,32 +162,168 @@ fun HomeScreen(
             )
         )
 
-        // Alt tarafa güvenli boşluk
+        // Günün Fırsatları (26 Ürün - Classic V1 Cards)
+        if (randomProducts.isNotEmpty()) {
+            GridProductSection(
+                title = "Günün Fırsatları",
+                products = randomProducts,
+                onAddToCart = onAddToCart,
+                onProductClick = onProductClick
+            )
+        }
+
         Spacer(modifier = Modifier.height(110.dp))
     }
 }
 
-data class PromoItem(val title: String, val imageUrl: String)
+@Composable
+fun CategorySection(categories: List<Category>) {
+    Column(modifier = Modifier.padding(top = 16.dp)) {
+        LazyRow(
+            modifier = Modifier.height(90.dp), // Boyut görseldeki gibi optimize edildi
+            contentPadding = PaddingValues(horizontal = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp) // 5 tane sığması için boşluk ayarı
+        ) {
+            items(categories) { category ->
+                CategoryCard(category = category)
+            }
+        }
+    }
+}
+
+@Composable
+fun CategoryCard(category: Category) {
+    Card(
+        modifier = Modifier
+            .width(70.dp) // 5 tane sığması için ideal genişlik
+            .fillMaxHeight()
+            .clickable { },
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFEEEEEE)) // Arka plan gri
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Üst Kısım: Resim (Kategorinin ilk ürünü)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(0.65f)
+                    .padding(0.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                AsyncImage(
+                    model = category.imageUrl,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(8.dp)),
+                    contentScale = ContentScale.Fit
+                )
+            }
+            
+            // Alt Kısım: Metin
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(0.35f)
+                    .padding(bottom = 4.dp, start = 4.dp, end = 4.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = category.title,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontSize = 9.sp, // Daha küçük font
+                    fontWeight = FontWeight.Bold,
+                    color = Color.DarkGray,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun HorizontalProductSection(
+    title: String, 
+    products: List<ProductDto>, 
+    onAddToCart: (ProductDto) -> Unit, 
+    onProductClick: (Int) -> Unit
+) {
+    Column(modifier = Modifier.padding(top = 16.dp)) {
+        Text(
+            text = title, 
+            style = MaterialTheme.typography.titleLarge, 
+            fontWeight = FontWeight.Bold, 
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+        )
+        LazyRow(
+            modifier = Modifier.height(360.dp), 
+            contentPadding = PaddingValues(horizontal = 8.dp), 
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            items(products) { product ->
+                ProductCardV2(
+                    product = product, 
+                    onAddToCart = { onAddToCart(product) }, 
+                    onProductClick = onProductClick, 
+                    modifier = Modifier.width(220.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun GridProductSection(
+    title: String, 
+    products: List<ProductDto>, 
+    onAddToCart: (ProductDto) -> Unit, 
+    onProductClick: (Int) -> Unit
+) {
+    Column(modifier = Modifier.padding(top = 16.dp)) {
+        Text(
+            text = title, 
+            style = MaterialTheme.typography.titleLarge, 
+            fontWeight = FontWeight.Bold, 
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), 
+            color = Color.Black
+        )
+        val rows = products.chunked(2)
+        rows.forEach { rowItems ->
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp), 
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                for (product in rowItems) {
+                    ProductCardV1(
+                        product = product, 
+                        onAddToCart = { onAddToCart(product) }, 
+                        onProductClick = onProductClick, 
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                if (rowItems.size == 1) Spacer(modifier = Modifier.weight(1f))
+            }
+        }
+    }
+}
 
 @Composable
 fun PromoSection(title: String, promos: List<PromoItem>) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 16.dp)
-    ) {
+    Column(modifier = Modifier.padding(top = 16.dp)) {
         Text(
-            text = title,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            text = title, 
+            style = MaterialTheme.typography.titleMedium, 
+            fontWeight = FontWeight.Bold, 
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), 
             color = Color.Black
         )
-
         LazyRow(
-            contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier.height(110.dp) // Toplam yükseklik azaltıldı
+            contentPadding = PaddingValues(horizontal = 16.dp), 
+            horizontalArrangement = Arrangement.spacedBy(10.dp), 
+            modifier = Modifier.height(110.dp)
         ) {
             items(promos) { promo ->
                 PromoCard(promo = promo)
@@ -182,48 +335,35 @@ fun PromoSection(title: String, promos: List<PromoItem>) {
 @Composable
 fun PromoCard(promo: PromoItem) {
     Card(
-        modifier = Modifier
-            .width(90.dp) // Genişlik artırıldı
-            .height(95.dp) // Yükseklik azaltıldı
-            .clickable { /* Kampanya tıklandı */ },
-        shape = RoundedCornerShape(10.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        modifier = Modifier.width(90.dp).height(95.dp).clickable { },
+        shape = RoundedCornerShape(10.dp), 
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp), 
         colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Üst Kısım: Resim ve Mavi Arka Plan
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(0.6f) // Oran dengelendi
-                    .background(MaterialTheme.colorScheme.primary),
+                modifier = Modifier.fillMaxWidth().weight(0.6f).background(MaterialTheme.colorScheme.primary), 
                 contentAlignment = Alignment.Center
             ) {
                 AsyncImage(
-                    model = promo.imageUrl,
-                    contentDescription = null,
-                    modifier = Modifier.padding(6.dp).fillMaxSize(),
+                    model = promo.imageUrl, 
+                    contentDescription = null, 
+                    modifier = Modifier.padding(6.dp).fillMaxSize(), 
                     contentScale = ContentScale.Fit
                 )
             }
-
-            // Alt Kısım: Metin ve Gri Arka Plan
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(0.4f)
-                    .background(Color(0xFFEEEEEE))
-                    .padding(horizontal = 4.dp, vertical = 4.dp),
+                modifier = Modifier.fillMaxWidth().weight(0.4f).background(Color(0xFFEEEEEE)).padding(horizontal = 4.dp, vertical = 4.dp), 
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = promo.title,
-                    fontSize = 9.sp, // Daha geniş alan olduğu için font biraz büyütüldü
-                    fontWeight = FontWeight.Bold,
-                    color = Color.Black,
-                    textAlign = TextAlign.Center,
-                    lineHeight = 11.sp,
-                    maxLines = 2,
+                    text = promo.title, 
+                    fontSize = 9.sp, 
+                    fontWeight = FontWeight.Bold, 
+                    color = Color.Black, 
+                    textAlign = TextAlign.Center, 
+                    lineHeight = 11.sp, 
+                    maxLines = 2, 
                     overflow = TextOverflow.Ellipsis
                 )
             }
@@ -231,218 +371,52 @@ fun PromoCard(promo: PromoItem) {
     }
 }
 
-@Composable
-fun HorizontalProductSection(
-    title: String,
-    products: List<ProductDto>,
-    onAddToCart: (ProductDto) -> Unit,
-    onProductClick: (Int) -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 8.dp)
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-        )
-
-        LazyRow(
-            modifier = Modifier.height(360.dp), // V2 kartlar için yükseklik artırıldı (Overflow düzeltildi)
-            contentPadding = PaddingValues(horizontal = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            items(products) { product ->
-                ProductCardV2(
-                    product = product,
-                    onAddToCart = { onAddToCart(product) },
-                    onProductClick = onProductClick,
-                    modifier = Modifier.width(220.dp)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun CategorySection(categories: List<Category>) {
-    LazyRow(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 16.dp),
-        contentPadding = PaddingValues(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        items(categories) { category ->
-            CategoryItem(category = category)
-        }
-    }
-}
-
-@Composable
-fun CategoryItem(category: Category) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
-            .width(80.dp)
-            .clickable { }
-    ) {
-        Box(
-            modifier = Modifier
-                .size(64.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(category.backgroundColor.copy(alpha = 0.15f))
-                .padding(14.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = category.icon,
-                contentDescription = category.title,
-                tint = category.backgroundColor,
-                modifier = Modifier.fillMaxSize()
-            )
-        }
-        Spacer(modifier = Modifier.height(8.dp))
-        Box(
-            modifier = Modifier.height(32.dp),
-            contentAlignment = Alignment.TopCenter
-        ) {
-            Text(
-                text = category.title,
-                style = MaterialTheme.typography.labelSmall,
-                textAlign = TextAlign.Center,
-                maxLines = 2,
-                lineHeight = MaterialTheme.typography.labelSmall.fontSize * 1.2,
-                fontWeight = FontWeight.Bold,
-                color = Color.DarkGray
-            )
-        }
-    }
-}
-
-@Composable
-fun BrandSection(brands: List<String>) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 16.dp, bottom = 8.dp)
-    ) {
-        Text(
-            text = "Popüler Markalar",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
-            color = Color.Black
-        )
-        
-        LazyRow(
-            modifier = Modifier.height(70.dp),
-            contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            items(brands) { logoUrl ->
-                BrandItem(logoUrl = logoUrl)
-            }
-        }
-    }
-}
-
-@Composable
-fun BrandItem(logoUrl: String) {
-    Box(
-        modifier = Modifier
-            .size(56.dp)
-            .clip(CircleShape)
-            .background(Color.White)
-            .clickable { }
-            .padding(8.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        AsyncImage(
-            model = logoUrl,
-            contentDescription = "Marka Logosu",
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Fit
-        )
-    }
-}
-
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun HomeScreenPreview() {
     APIcallingTheme {
-        HomeScreen(
-            productState = ProductState(),
-            onAddToCart = {},
-            onProductClick = {}
-        )
+        HomeScreen(productState = ProductState(), onAddToCart = {}, onProductClick = {})
     }
 }
 
 @Composable
-fun CampaignSlider(images: List<String>) {
+fun CampaignSlider(images: List<Any>) {
     val pagerState = rememberPagerState(pageCount = { images.size })
     val scope = rememberCoroutineScope()
-
     LaunchedEffect(key1 = pagerState.currentPage) {
         delay(4000)
         val nextPage = (pagerState.currentPage + 1) % images.size
-        scope.launch {
+        scope.launch { 
             pagerState.animateScrollToPage(
-                page = nextPage,
+                page = nextPage, 
                 animationSpec = tween(durationMillis = 1000)
-            )
+            ) 
         }
     }
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 16.dp)
-    ) {
+    Column(modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) {
         HorizontalPager(
-            state = pagerState,
-            contentPadding = PaddingValues(horizontal = 10.dp),
-            pageSpacing = 10.dp,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(150.dp)
+            state = pagerState, 
+            contentPadding = PaddingValues(horizontal = 10.dp), 
+            pageSpacing = 10.dp, 
+            modifier = Modifier.fillMaxWidth().height(150.dp)
         ) { page ->
             Card(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clickable { },
-                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.fillMaxSize().clickable { }, 
+                shape = RoundedCornerShape(16.dp), 
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 AsyncImage(
-                    model = images[page],
-                    contentDescription = "Kampanya ${page + 1}",
-                    modifier = Modifier.fillMaxSize(),
+                    model = images[page], 
+                    contentDescription = "Kampanya ${page + 1}", 
+                    modifier = Modifier.fillMaxSize(), 
                     contentScale = ContentScale.Crop
                 )
             }
         }
-        
-        Row(
-            Modifier
-                .height(20.dp)
-                .fillMaxWidth()
-                .padding(top = 8.dp),
-            horizontalArrangement = Arrangement.Center
-        ) {
+        Row(Modifier.height(20.dp).fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.Center) {
             repeat(images.size) { iteration ->
                 val color = if (pagerState.currentPage == iteration) MaterialTheme.colorScheme.primary else Color.LightGray
-                Box(
-                    modifier = Modifier
-                        .padding(2.dp)
-                        .clip(RoundedCornerShape(50))
-                        .background(color)
-                        .size(8.dp)
-                )
+                Box(modifier = Modifier.padding(2.dp).clip(RoundedCornerShape(50)).background(color).size(8.dp))
             }
         }
     }

@@ -19,7 +19,7 @@ interface ApiService {
     @GET("users/{id}")
     suspend fun getUser(@retrofit2.http.Path("id") id: Int): UserDto
 
-    @GET("products")
+    @GET("products?limit=100") // Daha fazla kategori çıkması için limit artırıldı
     suspend fun getProducts(): ProductListResponse
 
     @GET("products/{id}")
