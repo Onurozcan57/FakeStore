@@ -34,8 +34,9 @@ import androidx.navigation.compose.rememberNavController
 import com.example.apicalling.ui.cart.CartViewModel
 import com.example.apicalling.ui.home.HomeScreen
 import com.example.apicalling.ui.navigation.Screen
-import com.example.apicalling.ui.product.ProductScreen
 import com.example.apicalling.ui.product.ProductViewModel
+import com.example.apicalling.ui.product.detail.ProductDetailScreen
+import com.example.apicalling.ui.product.detail.ProductDetailViewModel
 import com.example.apicalling.ui.profile.ProfileScreen
 import com.example.apicalling.ui.profile.ProfileViewModel
 
@@ -58,96 +59,85 @@ fun MainScreen(
         BottomNavItem.Profile
     )
 
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentDestination = navBackStackEntry?.destination
+    
+    // Terminoloji: Dynamic Bottom Bar Visibility
+    // Ürün detay sayfasındayken bottom bar'ı gizliyoruz.
+    val showBottomBar = currentDestination?.route != Screen.ProductDetail.route
+
     Scaffold(
         containerColor = Color.Transparent, // Şeffaf arka plan
         modifier = Modifier.fillMaxSize(),
         bottomBar = {
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 16.dp, end = 16.dp, bottom = 20.dp), // Alt boşluğu optimize ettik
-                shape = RoundedCornerShape(28.dp),
-                shadowElevation = 12.dp,
-                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
-            ) {
-                NavigationBar(
-                    containerColor = Color.Transparent,
-                    tonalElevation = 0.dp,
-                    windowInsets = WindowInsets(0, 0, 0, 0), // Sistem barı boşluğunu kaldırır
-                    modifier = Modifier.height(70.dp) // Bar boyutu küçültüldü (Standart 80dp'den 64dp'ye)
+            if (showBottomBar) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, end = 16.dp, bottom = 20.dp),
+                    shape = RoundedCornerShape(28.dp),
+                    shadowElevation = 12.dp,
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
                 ) {
+                    NavigationBar(
+                        containerColor = Color.Transparent,
+                        tonalElevation = 0.dp,
+                        windowInsets = WindowInsets(0, 0, 0, 0),
+                        modifier = Modifier.height(70.dp)
+                    ) {
+                        items.forEach { item ->
+                            val selected = currentDestination?.hierarchy?.any { it.route == item.route } == true
+                            val iconSize by animateDpAsState(
+                                targetValue = if (selected) 28.dp else 22.dp,
+                                label = "iconSize"
+                            )
 
-                    val navBackStackEntry by navController.currentBackStackEntryAsState()
-                    val currentDestination = navBackStackEntry?.destination
-
-                    items.forEach { item ->
-
-                        val selected =
-                            currentDestination?.hierarchy?.any {
-                                it.route == item.route
-                            } == true
-
-                        val iconSize by animateDpAsState(
-                            targetValue = if (selected) 28.dp else 22.dp,
-                            label = "iconSize"
-                        )
-
-                        NavigationBarItem(
-
-                            selected = selected,
-
-                            onClick = {
-                                navController.navigate(item.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        saveState = true
+                            NavigationBarItem(
+                                selected = selected,
+                                onClick = {
+                                    navController.navigate(item.route) {
+                                        popUpTo(navController.graph.findStartDestination().id) {
+                                            saveState = true
+                                        }
+                                        launchSingleTop = true
+                                        restoreState = true
                                     }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            },
-
-                            icon = {
-                                BadgedBox(
-                                    badge = {
-                                        if (item is BottomNavItem.Cart && cartViewModel.cartItems.isNotEmpty()) {
-                                            Badge {
-                                                Text(text = cartViewModel.cartItems.size.toString())
+                                },
+                                icon = {
+                                    BadgedBox(
+                                        badge = {
+                                            if (item is BottomNavItem.Cart && cartViewModel.cartItems.isNotEmpty()) {
+                                                Badge {
+                                                    Text(text = cartViewModel.cartItems.size.toString())
+                                                }
                                             }
                                         }
+                                    ) {
+                                        Icon(
+                                            imageVector = item.icon,
+                                            contentDescription = item.title,
+                                            modifier = Modifier.size(iconSize)
+                                        )
                                     }
-                                ) {
-                                    Icon(
-                                        imageVector = item.icon,
-                                        contentDescription = item.title,
-                                        modifier = Modifier.size(iconSize)
+                                },
+                                label = {
+                                    Text(
+                                        text = item.title,
+                                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
                                     )
-                                }
-                            },
-
-                            label = {
-                                Text(
-                                    text = item.title,
-                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+                                },
+                                colors = NavigationBarItemDefaults.colors(
+                                    indicatorColor = MaterialTheme.colorScheme.primary,
+                                    selectedIconColor = Color.White,
+                                    selectedTextColor = MaterialTheme.colorScheme.primary,
+                                    unselectedIconColor = Color.Gray,
+                                    unselectedTextColor = Color.Gray
                                 )
-                            },
-
-                            colors = NavigationBarItemDefaults.colors(
-
-                                indicatorColor = MaterialTheme.colorScheme.primary,
-
-                                selectedIconColor = Color.White,
-
-                                selectedTextColor = MaterialTheme.colorScheme.primary,
-
-                                unselectedIconColor = Color.Gray,
-
-                                unselectedTextColor = Color.Gray
                             )
-                        )
+                        }
                     }
                 }
             }
-
         }
     ) { innerPadding ->
         // topPadding'i kaldırıyoruz, böylece içerik ekranın en tepesine kadar gidebilir.
@@ -161,6 +151,31 @@ fun MainScreen(
                 val productViewModel: ProductViewModel = hiltViewModel()
                 HomeScreen(
                     productState = productViewModel.state.value,
+                    onAddToCart = { product ->
+                        cartViewModel.addToCart(product)
+                    },
+                    onProductClick = { productId ->
+                        navController.navigate(Screen.ProductDetail.createRoute(productId))
+                        println("butona tıklandı")
+                    }
+                )
+            }
+            composable(Screen.ProductDetail.route) {
+                val detailViewModel: ProductDetailViewModel = hiltViewModel()
+                ProductDetailScreen(
+                    viewModel = detailViewModel,
+                    cartItemCount = cartViewModel.cartItems.size, // Terminoloji: Data Propagation
+                    onBackClick = { navController.popBackStack() },
+                    onCartClick = {
+                            navController.navigate(Screen.Cart.route) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = true
+                                 }
+                                launchSingleTop = true
+                                  restoreState = true
+                            }
+                        println("butona tıklandı")
+                    },
                     onAddToCart = { product ->
                         cartViewModel.addToCart(product)
                     }

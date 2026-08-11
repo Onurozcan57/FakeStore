@@ -24,8 +24,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.apicalling.ui.theme.APIcallingTheme
 import kotlinx.coroutines.delay
@@ -43,12 +45,12 @@ data class Category(
 
 /**
  * Yeni Ana Sayfa tasarımı.
- * UI State'i parametre olarak alarak daha test edilebilir ve preview edilebilir hale getirdik.
  */
 @Composable
 fun HomeScreen(
     productState: ProductState,
-    onAddToCart: (ProductDto) -> Unit
+    onAddToCart: (ProductDto) -> Unit,
+    onProductClick: (Int) -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
 
@@ -77,7 +79,7 @@ fun HomeScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFFF5F5F5))
-            .verticalScroll(rememberScrollState()) // Tüm sayfa kaydırılabilir olsun
+            .verticalScroll(rememberScrollState())
     ) {
         // Mavi Arka Planlı Header
         Box(
@@ -126,12 +128,106 @@ fun HomeScreen(
             HorizontalProductSection(
                 title = "Kampanyadaki Ürünler",
                 products = discountedProducts,
-                onAddToCart = onAddToCart
+                onAddToCart = onAddToCart,
+                onProductClick = onProductClick
             )
         }
 
-        // Alt tarafa güvenli boşluk (Floating Bar için)
-        Spacer(modifier = Modifier.height(100.dp))
+        // Sana Özel Kampanyalar Bölümü (Yeni - Promo Section)
+        PromoSection(
+            title = "Sana Özel Kampanyalar",
+            promos = listOf(
+                PromoItem("500 TL İndirim\nKaçırma", "https://dummyjson.com/public/img/products/1/thumbnail.jpg"),
+                PromoItem("Anne & Çocuk\n%10 Net İndirim", "https://dummyjson.com/public/img/products/2/thumbnail.jpg"),
+                PromoItem("Oyuncaklar\n%10 Net İndirim", "https://dummyjson.com/public/img/products/3/thumbnail.jpg"),
+                PromoItem("Teknoloji\nUygun Fırsat", "https://dummyjson.com/public/img/products/4/thumbnail.jpg"),
+                PromoItem("Spor & Outdoor\n%15 İndirim", "https://dummyjson.com/public/img/products/5/thumbnail.jpg")
+            )
+        )
+
+        // Alt tarafa güvenli boşluk
+        Spacer(modifier = Modifier.height(110.dp))
+    }
+}
+
+data class PromoItem(val title: String, val imageUrl: String)
+
+@Composable
+fun PromoSection(title: String, promos: List<PromoItem>) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 16.dp)
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            color = Color.Black
+        )
+
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.height(110.dp) // Toplam yükseklik azaltıldı
+        ) {
+            items(promos) { promo ->
+                PromoCard(promo = promo)
+            }
+        }
+    }
+}
+
+@Composable
+fun PromoCard(promo: PromoItem) {
+    Card(
+        modifier = Modifier
+            .width(90.dp) // Genişlik artırıldı
+            .height(95.dp) // Yükseklik azaltıldı
+            .clickable { /* Kampanya tıklandı */ },
+        shape = RoundedCornerShape(10.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Üst Kısım: Resim ve Mavi Arka Plan
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(0.6f) // Oran dengelendi
+                    .background(MaterialTheme.colorScheme.primary),
+                contentAlignment = Alignment.Center
+            ) {
+                AsyncImage(
+                    model = promo.imageUrl,
+                    contentDescription = null,
+                    modifier = Modifier.padding(6.dp).fillMaxSize(),
+                    contentScale = ContentScale.Fit
+                )
+            }
+
+            // Alt Kısım: Metin ve Gri Arka Plan
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(0.4f)
+                    .background(Color(0xFFEEEEEE))
+                    .padding(horizontal = 4.dp, vertical = 4.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = promo.title,
+                    fontSize = 9.sp, // Daha geniş alan olduğu için font biraz büyütüldü
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 11.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
     }
 }
 
@@ -139,7 +235,8 @@ fun HomeScreen(
 fun HorizontalProductSection(
     title: String,
     products: List<ProductDto>,
-    onAddToCart: (ProductDto) -> Unit
+    onAddToCart: (ProductDto) -> Unit,
+    onProductClick: (Int) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -154,6 +251,7 @@ fun HorizontalProductSection(
         )
 
         LazyRow(
+            modifier = Modifier.height(360.dp), // V2 kartlar için yükseklik artırıldı (Overflow düzeltildi)
             contentPadding = PaddingValues(horizontal = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
@@ -161,7 +259,8 @@ fun HorizontalProductSection(
                 ProductCardV2(
                     product = product,
                     onAddToCart = { onAddToCart(product) },
-                    modifier = Modifier.width(220.dp) // Kart boyutu içerik nedeniyle artırıldı
+                    onProductClick = onProductClick,
+                    modifier = Modifier.width(220.dp)
                 )
             }
         }
@@ -188,26 +287,25 @@ fun CategoryItem(category: Category) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
-            .width(80.dp) // Biraz genişlettik
-            .clickable { /* Kategori tıklama */ }
+            .width(80.dp)
+            .clickable { }
     ) {
         Box(
             modifier = Modifier
-                .size(64.dp) // Kutuyu biraz büyüttük
+                .size(64.dp)
                 .clip(RoundedCornerShape(16.dp))
-                .background(category.backgroundColor.copy(alpha = 0.15f)) // Arka planı daha belirgin yaptık
+                .background(category.backgroundColor.copy(alpha = 0.15f))
                 .padding(14.dp),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = category.icon,
                 contentDescription = category.title,
-                tint = category.backgroundColor, // İkon rengi artık her zaman kendi rengi
+                tint = category.backgroundColor,
                 modifier = Modifier.fillMaxSize()
             )
         }
         Spacer(modifier = Modifier.height(8.dp))
-        // Sabit yükseklik vererek (minLines/height) tüm metinlerin aynı hizada durmasını sağladık
         Box(
             modifier = Modifier.height(32.dp),
             contentAlignment = Alignment.TopCenter
@@ -230,16 +328,18 @@ fun BrandSection(brands: List<String>) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp)
+            .padding(top = 16.dp, bottom = 8.dp)
     ) {
         Text(
             text = "Popüler Markalar",
-            style = MaterialTheme.typography.titleSmall,
+            style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
-            color = Color.DarkGray
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
+            color = Color.Black
         )
+        
         LazyRow(
+            modifier = Modifier.height(70.dp),
             contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -254,18 +354,18 @@ fun BrandSection(brands: List<String>) {
 fun BrandItem(logoUrl: String) {
     Box(
         modifier = Modifier
-            .size(56.dp) // Kategorilerden daha küçük
-            .clip(CircleShape) // Tam yuvarlak
-            .background(Color(0xFFF5F5F5)) // Ürün kartındaki gri tonu
-            .clickable { /* Marka tıklama */ }
-            .padding(8.dp), // Logonun kenarlara yapışmaması için
+            .size(56.dp)
+            .clip(CircleShape)
+            .background(Color.White)
+            .clickable { }
+            .padding(8.dp),
         contentAlignment = Alignment.Center
     ) {
         AsyncImage(
             model = logoUrl,
             contentDescription = "Marka Logosu",
             modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Fit // Logoyu taşırmadan sığdırır
+            contentScale = ContentScale.Fit
         )
     }
 }
@@ -276,7 +376,8 @@ fun HomeScreenPreview() {
     APIcallingTheme {
         HomeScreen(
             productState = ProductState(),
-            onAddToCart = {}
+            onAddToCart = {},
+            onProductClick = {}
         )
     }
 }
@@ -286,7 +387,6 @@ fun CampaignSlider(images: List<String>) {
     val pagerState = rememberPagerState(pageCount = { images.size })
     val scope = rememberCoroutineScope()
 
-    // Otomatik kayma mantığı
     LaunchedEffect(key1 = pagerState.currentPage) {
         delay(4000)
         val nextPage = (pagerState.currentPage + 1) % images.size
@@ -327,7 +427,6 @@ fun CampaignSlider(images: List<String>) {
             }
         }
         
-        // Sayfa Göstergesi (Dots)
         Row(
             Modifier
                 .height(20.dp)

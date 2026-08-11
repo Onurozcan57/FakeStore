@@ -1,6 +1,7 @@
 package com.example.apicalling.data.remote
 
 import com.example.apicalling.data.model.LoginRequest
+import com.example.apicalling.data.model.ProductDto
 import com.example.apicalling.data.model.ProductListResponse
 import com.example.apicalling.data.model.UserDto
 import com.example.apicalling.data.model.UserListResponse
@@ -20,6 +21,9 @@ interface ApiService {
 
     @GET("products")
     suspend fun getProducts(): ProductListResponse
+
+    @GET("products/{id}")
+    suspend fun getProduct(@retrofit2.http.Path("id") id: Int): ProductDto
 
     companion object {
         const val BASE_URL = "https://dummyjson.com/"

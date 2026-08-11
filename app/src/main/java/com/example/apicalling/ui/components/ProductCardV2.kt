@@ -27,45 +27,41 @@ import kotlin.random.Random
 
 /**
  * 2. Nesil Ürün Kartı Tasarımı (Terminoloji: Premium Product Card)
- * Özellikler: Favori ikonu, açıklama metni, yıldızlı puanlama ve kompakt alt bar.
  */
 @Composable
 fun ProductCardV2(
     product: ProductDto,
     onAddToCart: () -> Unit,
+    onProductClick: (Int) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    // Terminoloji: Favorite Toggle State (Favori Durumu)
     var isFavorite by remember { mutableStateOf(false) }
-    
-    // Rastgele yorum sayısı üretimi (Sadece görsel amaçlı)
     val reviewCount = remember { Random.nextInt(10, 500) }
 
     Card(
         modifier = modifier
             .padding(8.dp)
-            .fillMaxWidth(),
+            .fillMaxWidth()
+            .clickable { onProductClick(product.id) },
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         shape = RoundedCornerShape(16.dp)
     ) {
         Column {
-            // Üst Kısım: Resim ve Favori Butonu (Terminoloji: Image Overlay)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(160.dp)
-                    .background(Color(0xFFF5F5F5)), // Resim arkası gri
+                    .background(Color(0xFFF5F5F5)),
                 contentAlignment = Alignment.Center
             ) {
                 AsyncImage(
                     model = product.thumbnail,
                     contentDescription = product.title,
                     modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Fit // Ürünü gri alanda tam göstermek için
+                    contentScale = ContentScale.Fit
                 )
 
-                // Favori İkonu (Terminoloji: Floating Action Icon)
                 Surface(
                     modifier = Modifier
                         .padding(8.dp)
@@ -87,7 +83,6 @@ fun ProductCardV2(
                 }
             }
 
-            // Orta Kısım: Bilgiler (Terminoloji: Content Body)
             Column(modifier = Modifier.padding(12.dp)) {
                 Text(
                     text = product.title,
@@ -101,17 +96,19 @@ fun ProductCardV2(
                     text = product.description,
                     style = MaterialTheme.typography.bodySmall,
                     color = Color.Gray,
-                    maxLines = 2,
+                    maxLines = 2, // 2 satırda tutuyoruz
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(vertical = 4.dp)
+                    modifier = Modifier.padding(vertical = 2.dp)
                 )
 
-                // Puanlama Alanı (Terminoloji: Rating Bar)
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                ) {
                     Icon(
                         imageVector = Icons.Default.Star,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary, // Boyalı yıldız
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
@@ -124,19 +121,17 @@ fun ProductCardV2(
                     Text(
                         text = "($reviewCount yorum)",
                         style = MaterialTheme.typography.labelSmall,
-                        color = Color.LightGray // Silik gri
+                        color = Color.LightGray
                     )
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Alt Kısım: Fiyat ve Ekle (Terminoloji: Action Row)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Fiyat Alanı (Terminoloji: Price Tag - Gri Arka Plan)
                     Surface(
                         color = Color(0xFFF5F5F5),
                         shape = RoundedCornerShape(8.dp)

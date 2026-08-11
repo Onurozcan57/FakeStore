@@ -1,6 +1,7 @@
 package com.example.apicalling.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -18,36 +19,39 @@ import coil.compose.AsyncImage
 import com.example.apicalling.data.model.ProductDto
 
 /**
- * Uygulama genelinde kullanılabilen, bağımsız ürün kartı bileşeni.
+ * 1. Nesil Ürün Kartı Tasarımı (Terminoloji: Classic Product Card)
+ * Özellikler: Sade, gri arka planlı resim ve fiyat etiketi.
  */
 @Composable
-fun ProductCard(
+fun ProductCardV1(
     product: ProductDto,
     onAddToCart: () -> Unit,
+    onProductClick: (Int) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Card(
         modifier = modifier
             .padding(8.dp)
-            .fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color.White), // Ana kart beyaz
+            .fillMaxWidth()
+            .clickable { onProductClick(product.id) },
+        colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         shape = RoundedCornerShape(16.dp)
     ) {
         Column {
-            // Resim Alanı (Gri Arka Plan)
+            // Resim Alanı (Terminoloji: Shaded Image Container)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(150.dp)
-                    .background(Color(0xFFF5F5F5)), // Hafif gri
+                    .background(Color(0xFFF5F5F5)),
                 contentAlignment = Alignment.Center
             ) {
                 AsyncImage(
                     model = product.thumbnail,
                     contentDescription = product.title,
                     modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Fit // Ürünü gri alanda tam göstermek için
+                    contentScale = ContentScale.Fit
                 )
             }
             
@@ -62,7 +66,7 @@ fun ProductCard(
                 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Fiyat Alanı (Gri Arka Planlı Şerit/Etiket)
+                // Fiyat Alanı (Terminoloji: Highlighted Price Tag)
                 Surface(
                     color = Color(0xFFF5F5F5),
                     shape = RoundedCornerShape(8.dp)
@@ -78,6 +82,7 @@ fun ProductCard(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
+                // Aksiyon Butonu (Terminoloji: Secondary CTA)
                 Button(
                     onClick = onAddToCart,
                     modifier = Modifier.fillMaxWidth(),
