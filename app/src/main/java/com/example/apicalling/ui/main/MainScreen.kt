@@ -221,22 +221,25 @@ fun MainScreen(
             }
             composable(Screen.ProductDetail.route) {
                 val detailViewModel: ProductDetailViewModel = hiltViewModel()
+                val product = detailViewModel.state.value.product
+                
                 ProductDetailScreen(
                     viewModel = detailViewModel,
-                    cartItemCount = cartViewModel.cartItems.size, // Terminoloji: Data Propagation
+                    cartItemCount = cartViewModel.cartItems.size,
+                    isFavorite = product?.let { favoriteIds.contains(it.id) } ?: false,
                     onBackClick = { navController.popBackStack() },
                     onCartClick = {
-                            navController.navigate(Screen.Cart.route) {
+                        navController.navigate(Screen.Cart.route) {
                             popUpTo(navController.graph.findStartDestination().id) {
-                            saveState = true
-                                 }
-                                launchSingleTop = true
-                                  restoreState = true
+                                saveState = true
                             }
-                        println("butona tıklandı")
+                            launchSingleTop = true
+                            restoreState = true
+                        }
                     },
-                    onAddToCart = { product ->
-                        cartViewModel.addToCart(product)
+                    onAddToCart = { p -> cartViewModel.addToCart(p) },
+                    onFavoriteClick = {
+                        product?.let { favoriteViewModel.toggleFavorite(it.id) }
                     }
                 )
             }

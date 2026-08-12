@@ -36,12 +36,13 @@ import kotlin.random.Random
 fun ProductDetailScreen(
     viewModel: ProductDetailViewModel,
     cartItemCount: Int,
+    isFavorite: Boolean, // Yeni: Favori durumu
     onBackClick: () -> Unit,
     onCartClick: () -> Unit,
-    onAddToCart: (ProductDto) -> Unit
+    onAddToCart: (ProductDto) -> Unit,
+    onFavoriteClick: () -> Unit // Yeni: Favori tıklama aksiyonu
 ) {
     val state = viewModel.state.value
-    var isFavorite by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
     val scrollState = rememberScrollState()
 
@@ -96,7 +97,7 @@ fun ProductDetailScreen(
                             Icon(Icons.Default.ShoppingCart, contentDescription = "Sepet")
                         }
                     }
-                    IconButton(onClick = { isFavorite = !isFavorite }) {
+                    IconButton(onClick = onFavoriteClick) {
                         Icon(
                             imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                             contentDescription = "Favori",
