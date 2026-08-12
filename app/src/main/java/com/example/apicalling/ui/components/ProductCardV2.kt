@@ -32,11 +32,12 @@ import kotlin.random.Random
 fun ProductCardV2(
     product: ProductDto,
     onAddToCart: () -> Unit,
+    isFavorite: Boolean, // Terminoloji: Hoisted State
+    onFavoriteClick: () -> Unit, // Terminoloji: State Event
     onProductClick: (Int) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    var isFavorite by remember { mutableStateOf(false) }
-    val reviewCount = remember { Random.nextInt(10, 500) }
+    val reviewCount = product.reviews?.size ?: 0
 
     Card(
         modifier = modifier
@@ -67,16 +68,16 @@ fun ProductCardV2(
                         .padding(8.dp)
                         .size(32.dp)
                         .align(Alignment.TopEnd)
-                        .clickable { isFavorite = !isFavorite },
+                        .clickable { onFavoriteClick() },
                     shape = CircleShape,
-                    color = Color.White.copy(alpha = 0.8f),
+                    color = Color.White, // Tam beyaz yapıldı
                     shadowElevation = 2.dp
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                             contentDescription = "Favori",
-                            tint = if (isFavorite) MaterialTheme.colorScheme.primary else Color.Gray,
+                            tint = if (isFavorite) MaterialTheme.colorScheme.primary else Color.Black,
                             modifier = Modifier.size(18.dp)
                         )
                     }

@@ -14,6 +14,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.apicalling.data.session.FavoriteManager
 import com.example.apicalling.data.session.UserSession
 import com.example.apicalling.ui.login.LoginScreen
 import com.example.apicalling.ui.login.LoginViewModel
@@ -29,6 +30,9 @@ class MainActivity : ComponentActivity() {
     // Oturum yönetimini enjekte ediyoruz
     @Inject
     lateinit var userSession: UserSession
+
+    @Inject
+    lateinit var favoriteManager: FavoriteManager
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -68,7 +72,8 @@ class MainActivity : ComponentActivity() {
                                     navController.navigate(Screen.Login.route) {
                                         popUpTo(Screen.Main.route) { inclusive = true }
                                     }
-                                }
+                                },
+                                favoriteManager = favoriteManager
                             )
                         }
                     }

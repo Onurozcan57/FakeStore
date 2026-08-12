@@ -7,6 +7,7 @@ import com.example.apicalling.data.model.UserDto
 import com.example.apicalling.data.model.UserListResponse
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.Path
 import retrofit2.http.POST
 
 interface ApiService {
@@ -21,6 +22,9 @@ interface ApiService {
 
     @GET("products?limit=100") // Daha fazla kategori çıkması için limit artırıldı
     suspend fun getProducts(): ProductListResponse
+
+    @GET("products/category/{slug}")
+    suspend fun getProductsByCategory(@Path("slug") slug: String): ProductListResponse
 
     @GET("products/{id}")
     suspend fun getProduct(@retrofit2.http.Path("id") id: Int): ProductDto

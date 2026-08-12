@@ -53,18 +53,18 @@ data class PromoItem(val title: String, val imageUrl: String)
 @Composable
 fun HomeScreen(
     productState: ProductState,
+    favoriteIds: Set<Int>,
     onAddToCart: (ProductDto) -> Unit,
-    onProductClick: (Int) -> Unit
+    onProductClick: (Int) -> Unit,
+    onCategoryClick: (String) -> Unit,
+    onFavoriteClick: (Int) -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
 
-    // Günün Fırsatları için Rastgele 26 Ürün Seçimi
     val randomProducts = remember(productState.products) {
         productState.products.shuffled().take(26)
     }
 
-    // Dinamik Kategoriler (Terminoloji: Derived Dynamic Categories)
-    // Ürünlerden kategorileri ve ilk resimlerini türetiyoruz.
     val dynamicCategories = remember(productState.products) {
         productState.products
             .groupBy { it.category }
@@ -77,12 +77,10 @@ fun HomeScreen(
             }
     }
 
-    // Kampanyalı ürünler (V2 kartlar için - Beauty kategorisi)
     val discountedProducts = productState.products
         .filter { it.category == "beauty" }
         .take(10)
     
-    // Kampanya resimleri listesi (Yerel kaynaklar)
     val campaignImages = listOf(
         R.drawable.kampanya_2,
         R.drawable.kampanya_1,
@@ -96,7 +94,6 @@ fun HomeScreen(
             .background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState())
     ) {
-        // Mavi Arka Planlı Header
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -132,25 +129,23 @@ fun HomeScreen(
             }
         }
 
-        // Kampanya Slider (Carousel)
         CampaignSlider(images = campaignImages)
 
-        // Dinamik Kategoriler Alanı (Terminoloji: Integrated Category Cards)
         if (dynamicCategories.isNotEmpty()) {
-            CategorySection(categories = dynamicCategories)
+            CategorySection(categories = dynamicCategories, onCategoryClick = onCategoryClick)
         }
 
-        // Kampanyadaki Ürünler (V2 Tasarım - Detailed Cards)
         if (discountedProducts.isNotEmpty()) {
             HorizontalProductSection(
                 title = "Kampanyadaki Ürünler",
                 products = discountedProducts,
+                favoriteIds = favoriteIds,
                 onAddToCart = onAddToCart,
-                onProductClick = onProductClick
+                onProductClick = onProductClick,
+                onFavoriteClick = onFavoriteClick
             )
         }
 
-        // Sana Özel Kampanyalar (Promo Section)
         PromoSection(
             title = "Sana Özel Kampanyalar",
             promos = listOf(
@@ -162,13 +157,14 @@ fun HomeScreen(
             )
         )
 
-        // Günün Fırsatları (26 Ürün - Classic V1 Cards)
         if (randomProducts.isNotEmpty()) {
             GridProductSection(
                 title = "Günün Fırsatları",
                 products = randomProducts,
+                favoriteIds = favoriteIds,
                 onAddToCart = onAddToCart,
-                onProductClick = onProductClick
+                onProductClick = onProductClick,
+                onFavoriteClick = onFavoriteClick
             )
         }
 
@@ -177,68 +173,26 @@ fun HomeScreen(
 }
 
 @Composable
-fun CategorySection(categories: List<Category>) {
+fun CategorySection(categories: List<Category>, onCategoryClick: (String) -> Unit) {
     Column(modifier = Modifier.padding(top = 16.dp)) {
-        LazyRow(
-            modifier = Modifier.height(90.dp), // Boyut görseldeki gibi optimize edildi
-            contentPadding = PaddingValues(horizontal = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp) // 5 tane sığması için boşluk ayarı
-        ) {
+        Text(text = "Kategoriler", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), color = Color.Black)
+        LazyRow(modifier = Modifier.height(100.dp), contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             items(categories) { category ->
-                CategoryCard(category = category)
+                CategoryCard(category = category, onClick = { onCategoryClick(category.slug) })
             }
         }
     }
 }
 
 @Composable
-fun CategoryCard(category: Category) {
-    Card(
-        modifier = Modifier
-            .width(70.dp) // 5 tane sığması için ideal genişlik
-            .fillMaxHeight()
-            .clickable { },
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFEEEEEE)) // Arka plan gri
-    ) {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // Üst Kısım: Resim (Kategorinin ilk ürünü)
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(0.65f)
-                    .padding(0.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                AsyncImage(
-                    model = category.imageUrl,
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(8.dp)),
-                    contentScale = ContentScale.Fit
-                )
+fun CategoryCard(category: Category, onClick: () -> Unit) {
+    Card(modifier = Modifier.width(75.dp).fillMaxHeight().clickable { onClick() }, shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFEEEEEE))) {
+        Column(modifier = Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(modifier = Modifier.fillMaxWidth().weight(0.65f).padding(6.dp), contentAlignment = Alignment.Center) {
+                AsyncImage(model = category.imageUrl, contentDescription = null, modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(8.dp)), contentScale = ContentScale.Fit)
             }
-            
-            // Alt Kısım: Metin
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(0.35f)
-                    .padding(bottom = 4.dp, start = 4.dp, end = 4.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = category.title,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontSize = 9.sp, // Daha küçük font
-                    fontWeight = FontWeight.Bold,
-                    color = Color.DarkGray,
-                    textAlign = TextAlign.Center,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+            Box(modifier = Modifier.fillMaxWidth().weight(0.35f).padding(bottom = 4.dp, start = 4.dp, end = 4.dp), contentAlignment = Alignment.Center) {
+                Text(text = category.title, style = MaterialTheme.typography.labelSmall, fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.DarkGray, textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
     }
@@ -248,24 +202,19 @@ fun CategoryCard(category: Category) {
 fun HorizontalProductSection(
     title: String, 
     products: List<ProductDto>, 
+    favoriteIds: Set<Int>,
     onAddToCart: (ProductDto) -> Unit, 
-    onProductClick: (Int) -> Unit
+    onProductClick: (Int) -> Unit,
+    onFavoriteClick: (Int) -> Unit
 ) {
     Column(modifier = Modifier.padding(top = 16.dp)) {
-        Text(
-            text = title, 
-            style = MaterialTheme.typography.titleLarge, 
-            fontWeight = FontWeight.Bold, 
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-        )
-        LazyRow(
-            modifier = Modifier.height(360.dp), 
-            contentPadding = PaddingValues(horizontal = 8.dp), 
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
+        Text(text = title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+        LazyRow(modifier = Modifier.height(360.dp), contentPadding = PaddingValues(horizontal = 8.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             items(products) { product ->
                 ProductCardV2(
                     product = product, 
+                    isFavorite = favoriteIds.contains(product.id),
+                    onFavoriteClick = { onFavoriteClick(product.id) },
                     onAddToCart = { onAddToCart(product) }, 
                     onProductClick = onProductClick, 
                     modifier = Modifier.width(220.dp)
@@ -279,26 +228,21 @@ fun HorizontalProductSection(
 fun GridProductSection(
     title: String, 
     products: List<ProductDto>, 
+    favoriteIds: Set<Int>,
     onAddToCart: (ProductDto) -> Unit, 
-    onProductClick: (Int) -> Unit
+    onProductClick: (Int) -> Unit,
+    onFavoriteClick: (Int) -> Unit
 ) {
     Column(modifier = Modifier.padding(top = 16.dp)) {
-        Text(
-            text = title, 
-            style = MaterialTheme.typography.titleLarge, 
-            fontWeight = FontWeight.Bold, 
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), 
-            color = Color.Black
-        )
+        Text(text = title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), color = Color.Black)
         val rows = products.chunked(2)
         rows.forEach { rowItems ->
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp), 
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
+            Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 for (product in rowItems) {
                     ProductCardV1(
                         product = product, 
+                        isFavorite = favoriteIds.contains(product.id),
+                        onFavoriteClick = { onFavoriteClick(product.id) },
                         onAddToCart = { onAddToCart(product) }, 
                         onProductClick = onProductClick, 
                         modifier = Modifier.weight(1f)
@@ -313,18 +257,8 @@ fun GridProductSection(
 @Composable
 fun PromoSection(title: String, promos: List<PromoItem>) {
     Column(modifier = Modifier.padding(top = 16.dp)) {
-        Text(
-            text = title, 
-            style = MaterialTheme.typography.titleMedium, 
-            fontWeight = FontWeight.Bold, 
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), 
-            color = Color.Black
-        )
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 16.dp), 
-            horizontalArrangement = Arrangement.spacedBy(10.dp), 
-            modifier = Modifier.height(110.dp)
-        ) {
+        Text(text = title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), color = Color.Black)
+        LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.height(110.dp)) {
             items(promos) { promo ->
                 PromoCard(promo = promo)
             }
@@ -334,38 +268,13 @@ fun PromoSection(title: String, promos: List<PromoItem>) {
 
 @Composable
 fun PromoCard(promo: PromoItem) {
-    Card(
-        modifier = Modifier.width(90.dp).height(95.dp).clickable { },
-        shape = RoundedCornerShape(10.dp), 
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp), 
-        colors = CardDefaults.cardColors(containerColor = Color.White)
-    ) {
+    Card(modifier = Modifier.width(110.dp).height(95.dp).clickable { }, shape = RoundedCornerShape(10.dp), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
         Column(modifier = Modifier.fillMaxSize()) {
-            Box(
-                modifier = Modifier.fillMaxWidth().weight(0.6f).background(MaterialTheme.colorScheme.primary), 
-                contentAlignment = Alignment.Center
-            ) {
-                AsyncImage(
-                    model = promo.imageUrl, 
-                    contentDescription = null, 
-                    modifier = Modifier.padding(6.dp).fillMaxSize(), 
-                    contentScale = ContentScale.Fit
-                )
+            Box(modifier = Modifier.fillMaxWidth().weight(0.6f).background(MaterialTheme.colorScheme.primary), contentAlignment = Alignment.Center) {
+                AsyncImage(model = promo.imageUrl, contentDescription = null, modifier = Modifier.padding(6.dp).fillMaxSize(), contentScale = ContentScale.Fit)
             }
-            Box(
-                modifier = Modifier.fillMaxWidth().weight(0.4f).background(Color(0xFFEEEEEE)).padding(horizontal = 4.dp, vertical = 4.dp), 
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = promo.title, 
-                    fontSize = 9.sp, 
-                    fontWeight = FontWeight.Bold, 
-                    color = Color.Black, 
-                    textAlign = TextAlign.Center, 
-                    lineHeight = 11.sp, 
-                    maxLines = 2, 
-                    overflow = TextOverflow.Ellipsis
-                )
+            Box(modifier = Modifier.fillMaxWidth().weight(0.4f).background(Color(0xFFEEEEEE)).padding(horizontal = 4.dp, vertical = 4.dp), contentAlignment = Alignment.Center) {
+                Text(text = promo.title, fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.Black, textAlign = TextAlign.Center, lineHeight = 11.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
         }
     }
@@ -375,7 +284,7 @@ fun PromoCard(promo: PromoItem) {
 @Composable
 fun HomeScreenPreview() {
     APIcallingTheme {
-        HomeScreen(productState = ProductState(), onAddToCart = {}, onProductClick = {})
+        HomeScreen(productState = ProductState(), favoriteIds = emptySet(), onAddToCart = {}, onProductClick = {}, onCategoryClick = {}, onFavoriteClick = {})
     }
 }
 
@@ -386,31 +295,12 @@ fun CampaignSlider(images: List<Any>) {
     LaunchedEffect(key1 = pagerState.currentPage) {
         delay(4000)
         val nextPage = (pagerState.currentPage + 1) % images.size
-        scope.launch { 
-            pagerState.animateScrollToPage(
-                page = nextPage, 
-                animationSpec = tween(durationMillis = 1000)
-            ) 
-        }
+        scope.launch { pagerState.animateScrollToPage(page = nextPage, animationSpec = tween(durationMillis = 1000)) }
     }
     Column(modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) {
-        HorizontalPager(
-            state = pagerState, 
-            contentPadding = PaddingValues(horizontal = 10.dp), 
-            pageSpacing = 10.dp, 
-            modifier = Modifier.fillMaxWidth().height(150.dp)
-        ) { page ->
-            Card(
-                modifier = Modifier.fillMaxSize().clickable { }, 
-                shape = RoundedCornerShape(16.dp), 
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-            ) {
-                AsyncImage(
-                    model = images[page], 
-                    contentDescription = "Kampanya ${page + 1}", 
-                    modifier = Modifier.fillMaxSize(), 
-                    contentScale = ContentScale.Crop
-                )
+        HorizontalPager(state = pagerState, contentPadding = PaddingValues(horizontal = 10.dp), pageSpacing = 10.dp, modifier = Modifier.fillMaxWidth().height(150.dp)) { page ->
+            Card(modifier = Modifier.fillMaxSize().clickable { }, shape = RoundedCornerShape(16.dp), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
+                AsyncImage(model = images[page], contentDescription = "Kampanya ${page + 1}", modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
             }
         }
         Row(Modifier.height(20.dp).fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.Center) {

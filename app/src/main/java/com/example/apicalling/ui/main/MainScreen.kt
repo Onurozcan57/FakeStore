@@ -11,12 +11,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.ShoppingCart
-import androidx.compose.material.icons.filled.ShoppingCartCheckout
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,6 +34,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.apicalling.ui.cart.CartViewModel
+import com.example.apicalling.ui.category.CategoryDetailScreen
+import com.example.apicalling.ui.category.CategoryDetailViewModel
+import com.example.apicalling.ui.favorites.FavoriteScreen
+import com.example.apicalling.ui.favorites.FavoriteViewModel
 import com.example.apicalling.ui.home.HomeScreen
 import com.example.apicalling.ui.navigation.Screen
 import com.example.apicalling.ui.product.ProductViewModel
@@ -39,22 +45,35 @@ import com.example.apicalling.ui.product.detail.ProductDetailScreen
 import com.example.apicalling.ui.product.detail.ProductDetailViewModel
 import com.example.apicalling.ui.profile.ProfileScreen
 import com.example.apicalling.ui.profile.ProfileViewModel
+import com.example.apicalling.data.session.FavoriteManager
 
 sealed class BottomNavItem(val route: String, val title: String, val icon: ImageVector) {
     object Home : BottomNavItem(Screen.Home.route, "Ana Sayfa", Icons.Default.Home)
-    object Cart : BottomNavItem(Screen.Cart.route, "Sepet", Icons.Default.ShoppingCart)
-    object Profile : BottomNavItem(Screen.Profile.route, "Profil", Icons.Default.Person)
+    object Favorites : BottomNavItem(Screen.Favorites.route, "Favorilerim", Icons.Default.FavoriteBorder)
+    object Cart : BottomNavItem(Screen.Cart.route, "Sepetim", Icons.Default.ShoppingCart)
+    object Profile : BottomNavItem(Screen.Profile.route, "Hesabım", Icons.Default.Person)
 }
 
 @Composable
 fun MainScreen(
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    favoriteManager: FavoriteManager // MainActivity'den enjekte edilen manager
 ) {
     val navController = rememberNavController()
     val cartViewModel: CartViewModel = hiltViewModel()
+    val favoriteViewModel: FavoriteViewModel = hiltViewModel()
+
+    // Favori ID'lerini anlık olarak takip ediyoruz
+    val favoriteIds by favoriteManager.favoriteIds.collectAsState()
+
+    // Sayfa ilk açıldığında favorileri yükle (Terminoloji: Initial Session Sync)
+    LaunchedEffect(Unit) {
+        favoriteManager.loadFavorites()
+    }
 
     val items = listOf(
         BottomNavItem.Home,
+        BottomNavItem.Favorites,
         BottomNavItem.Cart,
         BottomNavItem.Profile
     )
@@ -86,7 +105,12 @@ fun MainScreen(
                         modifier = Modifier.height(70.dp)
                     ) {
                         items.forEach { item ->
-                            val selected = currentDestination?.hierarchy?.any { it.route == item.route } == true
+                            // Terminoloji: Navigation Hierarchy Mapping
+                            // Kategori detay sayfası da Ana Sayfa akışının bir parçası olduğu için
+                            // Home ikonunun seçili kalmasını sağlıyoruz.
+                            val selected = currentDestination?.hierarchy?.any { it.route == item.route } == true ||
+                                    (item is BottomNavItem.Home && currentDestination?.route == Screen.CategoryDetail.route)
+
                             val iconSize by animateDpAsState(
                                 targetValue = if (selected) 28.dp else 22.dp,
                                 label = "iconSize"
@@ -151,12 +175,47 @@ fun MainScreen(
                 val productViewModel: ProductViewModel = hiltViewModel()
                 HomeScreen(
                     productState = productViewModel.state.value,
+                    favoriteIds = favoriteIds, // Artık anlık takip ediliyor
                     onAddToCart = { product ->
                         cartViewModel.addToCart(product)
                     },
                     onProductClick = { productId ->
                         navController.navigate(Screen.ProductDetail.createRoute(productId))
                         println("butona tıklandı")
+                    },
+                    onCategoryClick = { slug ->
+                        navController.navigate(Screen.CategoryDetail.createRoute(slug))
+                    },
+                    onFavoriteClick = { productId ->
+                        favoriteViewModel.toggleFavorite(productId)
+                    }
+                )
+            }
+            composable(Screen.Favorites.route) {
+                FavoriteScreen(
+                    viewModel = favoriteViewModel,
+                    onProductClick = { productId ->
+                        navController.navigate(Screen.ProductDetail.createRoute(productId))
+                    },
+                    onAddToCart = { product ->
+                        cartViewModel.addToCart(product)
+                    }
+                )
+            }
+            composable(Screen.CategoryDetail.route) {
+                val categoryViewModel: CategoryDetailViewModel = hiltViewModel()
+                CategoryDetailScreen(
+                    viewModel = categoryViewModel,
+                    favoriteIds = favoriteIds,
+                    onBackClick = { navController.popBackStack() },
+                    onProductClick = { productId ->
+                        navController.navigate(Screen.ProductDetail.createRoute(productId))
+                    },
+                    onAddToCart = { product ->
+                        cartViewModel.addToCart(product)
+                    },
+                    onFavoriteClick = { productId ->
+                        favoriteViewModel.toggleFavorite(productId)
                     }
                 )
             }
@@ -194,7 +253,10 @@ fun MainScreen(
                 val viewModel: ProfileViewModel = hiltViewModel()
                 ProfileScreen(
                     viewModel = viewModel,
-                    onLogout = onLogout
+                    onLogout = {
+                        favoriteManager.clearData() // Favori listesini temizle
+                        onLogout()
+                    }
                 )
             }
         }
