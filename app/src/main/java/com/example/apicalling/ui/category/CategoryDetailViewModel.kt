@@ -1,13 +1,15 @@
 package com.example.apicalling.ui.category
 
-import androidx.compose.runtime.State
-import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.apicalling.data.model.ProductDto
 import com.example.apicalling.domain.repository.ProductRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -21,11 +23,10 @@ enum class SortOption(val title: String) {
 data class CategoryDetailState(
     val isLoading: Boolean = false,
     val products: List<ProductDto> = emptyList(),
-    val filteredProducts: List<ProductDto> = emptyList(), // Filtrelenmiş liste
+    val filteredProducts: List<ProductDto> = emptyList(),
     val categoryName: String = "",
     val error: String? = null,
     val selectedSortOption: SortOption = SortOption.RECOMMENDED,
-    // Filtreleme State'leri
     val minPrice: String = "",
     val maxPrice: String = "",
     val selectedBrands: Set<String> = emptySet(),
@@ -38,8 +39,8 @@ class CategoryDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
-    private val _state = mutableStateOf(CategoryDetailState())
-    val state: State<CategoryDetailState> = _state
+    private val _state = MutableStateFlow(CategoryDetailState())
+    val state: StateFlow<CategoryDetailState> = _state.asStateFlow()
 
     private var originalProducts: List<ProductDto> = emptyList()
 
@@ -51,57 +52,55 @@ class CategoryDetailViewModel @Inject constructor(
 
     private fun getProductsByCategory(slug: String) {
         viewModelScope.launch {
-            _state.value = _state.value.copy(isLoading = true, categoryName = slug)
+            _state.update { it.copy(isLoading = true, categoryName = slug) }
             try {
                 val products = productRepository.getProductsByCategory(slug)
                 originalProducts = products
                 val brands = products.mapNotNull { it.brand }.distinct().sorted()
-                _state.value = _state.value.copy(
-                    isLoading = false,
-                    products = products,
-                    filteredProducts = products,
-                    availableBrands = brands,
-                    error = null
-                )
+                _state.update { 
+                    it.copy(
+                        isLoading = false,
+                        products = products,
+                        filteredProducts = products,
+                        availableBrands = brands,
+                        error = null
+                    )
+                }
             } catch (e: Exception) {
-                _state.value = _state.value.copy(
-                    isLoading = false,
-                    error = "Ürünler yüklenirken bir hata oluştu."
-                )
+                _state.update { it.copy(isLoading = false, error = "Ürünler yüklenirken bir hata oluştu.") }
             }
         }
     }
 
     fun onSortOptionSelected(option: SortOption) {
-        _state.value = _state.value.copy(selectedSortOption = option)
+        _state.update { it.copy(selectedSortOption = option) }
         applyFiltersAndSort()
     }
 
     fun updatePriceRange(min: String, max: String) {
-        _state.value = _state.value.copy(minPrice = min, maxPrice = max)
+        _state.update { it.copy(minPrice = min, maxPrice = max) }
     }
 
     fun toggleBrandSelection(brand: String) {
-        val current = _state.value.selectedBrands.toMutableSet()
-        if (current.contains(brand)) current.remove(brand) else current.add(brand)
-        _state.value = _state.value.copy(selectedBrands = current)
+        _state.update { currentState ->
+            val current = currentState.selectedBrands.toMutableSet()
+            if (current.contains(brand)) current.remove(brand) else current.add(brand)
+            currentState.copy(selectedBrands = current)
+        }
     }
 
     fun applyFiltersAndSort() {
         val currentState = _state.value
         var list = originalProducts
 
-        // 1. Marka Filtresi
         if (currentState.selectedBrands.isNotEmpty()) {
             list = list.filter { currentState.selectedBrands.contains(it.brand) }
         }
 
-        // 2. Fiyat Filtresi
-        val min = currentState.minPrice.toDoubleOrNull() ?: 0.0
-        val max = currentState.maxPrice.toDoubleOrNull() ?: Double.MAX_VALUE
+        val min = currentState.minPrice.replace(",", ".").toDoubleOrNull() ?: 0.0
+        val max = currentState.maxPrice.replace(",", ".").toDoubleOrNull() ?: Double.MAX_VALUE
         list = list.filter { it.price in min..max }
 
-        // 3. Sıralama
         val sortedList = when (currentState.selectedSortOption) {
             SortOption.RECOMMENDED -> list
             SortOption.PRICE_LOW_TO_HIGH -> list.sortedBy { it.price }
@@ -109,16 +108,18 @@ class CategoryDetailViewModel @Inject constructor(
             SortOption.BEST_RATING -> list.sortedByDescending { it.rating }
         }
 
-        _state.value = currentState.copy(filteredProducts = sortedList)
+        _state.update { it.copy(filteredProducts = sortedList) }
     }
 
     fun resetFilters() {
-        _state.value = _state.value.copy(
-            minPrice = "",
-            maxPrice = "",
-            selectedBrands = emptySet(),
-            selectedSortOption = SortOption.RECOMMENDED,
-            filteredProducts = originalProducts
-        )
+        _state.update { 
+            it.copy(
+                minPrice = "",
+                maxPrice = "",
+                selectedBrands = emptySet(),
+                selectedSortOption = SortOption.RECOMMENDED,
+                filteredProducts = originalProducts
+            )
+        }
     }
 }

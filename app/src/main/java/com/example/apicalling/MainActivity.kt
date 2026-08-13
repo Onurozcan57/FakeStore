@@ -14,8 +14,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.example.apicalling.data.session.FavoriteManager
-import com.example.apicalling.data.session.UserSession
+import com.example.apicalling.domain.repository.FavoriteRepository
+import com.example.apicalling.domain.repository.SessionRepository
 import com.example.apicalling.ui.login.LoginScreen
 import com.example.apicalling.ui.login.LoginViewModel
 import com.example.apicalling.ui.main.MainScreen
@@ -29,10 +29,10 @@ class MainActivity : ComponentActivity() {
     
     // Oturum yönetimini enjekte ediyoruz
     @Inject
-    lateinit var userSession: UserSession
+    lateinit var sessionRepository: SessionRepository
 
     @Inject
-    lateinit var favoriteManager: FavoriteManager
+    lateinit var favoriteRepository: FavoriteRepository
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -43,7 +43,7 @@ class MainActivity : ComponentActivity() {
                 val context = LocalContext.current
 
                 // Başlangıç rotasını kullanıcı durumuna göre seçiyoruz (Terminoloji: Session Routing)
-                val startRoute = if (userSession.isLoggedIn()) Screen.Main.route else Screen.Login.route
+                val startRoute = if (sessionRepository.isLoggedIn()) Screen.Main.route else Screen.Login.route
                 
                 Surface(
                     modifier = Modifier.fillMaxSize(),
@@ -68,12 +68,12 @@ class MainActivity : ComponentActivity() {
                         composable(Screen.Main.route) {
                             MainScreen(
                                 onLogout = {
-                                    userSession.clearSession() // Hafızayı temizle
+                                    sessionRepository.clearSession() // Hafızayı temizle
                                     navController.navigate(Screen.Login.route) {
                                         popUpTo(Screen.Main.route) { inclusive = true }
                                     }
                                 },
-                                favoriteManager = favoriteManager
+                                favoriteRepository = favoriteRepository
                             )
                         }
                     }

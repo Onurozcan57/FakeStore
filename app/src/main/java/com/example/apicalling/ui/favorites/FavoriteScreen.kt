@@ -34,7 +34,7 @@ fun FavoriteScreen(
     onProductClick: (Int) -> Unit,
     onAddToCart: (ProductDto) -> Unit
 ) {
-    val state = viewModel.state.value
+    val state by viewModel.state.collectAsState()
     val scope = rememberCoroutineScope()
     val sortSheetState = rememberModalBottomSheetState()
     var showSortSheet by remember { mutableStateOf(false) }

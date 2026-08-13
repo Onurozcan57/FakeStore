@@ -12,6 +12,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -23,6 +25,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -36,13 +39,14 @@ import kotlin.random.Random
 fun ProductDetailScreen(
     viewModel: ProductDetailViewModel,
     cartItemCount: Int,
-    isFavorite: Boolean, // Yeni: Favori durumu
+    isFavorite: Boolean,
     onBackClick: () -> Unit,
     onCartClick: () -> Unit,
     onAddToCart: (ProductDto) -> Unit,
-    onFavoriteClick: () -> Unit // Yeni: Favori tıklama aksiyonu
+    onFavoriteClick: () -> Unit,
+    onSearch: (String) -> Unit // Yeni: Arama aksiyonu
 ) {
-    val state = viewModel.state.value
+    val state by viewModel.state.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
     val scrollState = rememberScrollState()
 
@@ -51,7 +55,6 @@ fun ProductDetailScreen(
             TopAppBar(
                 title = {
                     // Yenilenmiş Arama Çubuğu (Terminoloji: Custom Centered Search Bar)
-                    // BasicTextField kullanarak yazının her zaman görünür ve ortalı olmasını sağladık
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -69,6 +72,14 @@ fun ProductDetailScreen(
                             onValueChange = { searchQuery = it },
                             modifier = Modifier.weight(1f),
                             singleLine = true,
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                            keyboardActions = KeyboardActions(
+                                onSearch = {
+                                    if (searchQuery.isNotBlank()) {
+                                        onSearch(searchQuery)
+                                    }
+                                }
+                            ),
                             decorationBox = { innerTextField ->
                                 Box(contentAlignment = Alignment.CenterStart) {
                                     if (searchQuery.isEmpty()) {

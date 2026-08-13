@@ -20,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -33,9 +34,12 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.apicalling.ui.cart.CartScreen
 import com.example.apicalling.ui.cart.CartViewModel
 import com.example.apicalling.ui.category.CategoryDetailScreen
 import com.example.apicalling.ui.category.CategoryDetailViewModel
+import com.example.apicalling.ui.search.SearchScreen
+import com.example.apicalling.ui.search.SearchViewModel
 import com.example.apicalling.ui.favorites.FavoriteScreen
 import com.example.apicalling.ui.favorites.FavoriteViewModel
 import com.example.apicalling.ui.home.HomeScreen
@@ -45,7 +49,7 @@ import com.example.apicalling.ui.product.detail.ProductDetailScreen
 import com.example.apicalling.ui.product.detail.ProductDetailViewModel
 import com.example.apicalling.ui.profile.ProfileScreen
 import com.example.apicalling.ui.profile.ProfileViewModel
-import com.example.apicalling.data.session.FavoriteManager
+import com.example.apicalling.domain.repository.FavoriteRepository
 
 sealed class BottomNavItem(val route: String, val title: String, val icon: ImageVector) {
     object Home : BottomNavItem(Screen.Home.route, "Ana Sayfa", Icons.Default.Home)
@@ -57,18 +61,21 @@ sealed class BottomNavItem(val route: String, val title: String, val icon: Image
 @Composable
 fun MainScreen(
     onLogout: () -> Unit,
-    favoriteManager: FavoriteManager // MainActivity'den enjekte edilen manager
+    favoriteRepository: FavoriteRepository // MainActivity'den enjekte edilen repo
 ) {
     val navController = rememberNavController()
     val cartViewModel: CartViewModel = hiltViewModel()
     val favoriteViewModel: FavoriteViewModel = hiltViewModel()
 
+    val cartItems by cartViewModel.cartItems.collectAsState()
+    val suggestedProducts by cartViewModel.suggestedProducts.collectAsState()
+    
     // Favori ID'lerini anlık olarak takip ediyoruz
-    val favoriteIds by favoriteManager.favoriteIds.collectAsState()
+    val favoriteIds by favoriteRepository.favoriteIds.collectAsState()
 
     // Sayfa ilk açıldığında favorileri yükle (Terminoloji: Initial Session Sync)
     LaunchedEffect(Unit) {
-        favoriteManager.loadFavorites()
+        favoriteRepository.loadFavorites()
     }
 
     val items = listOf(
@@ -130,11 +137,11 @@ fun MainScreen(
                                 icon = {
                                     BadgedBox(
                                         badge = {
-                                            if (item is BottomNavItem.Cart && cartViewModel.cartItems.isNotEmpty()) {
-                                                Badge {
-                                                    Text(text = cartViewModel.cartItems.size.toString())
-                                                }
+                                            if (item is BottomNavItem.Cart && cartItems.isNotEmpty()) {
+                                            Badge {
+                                                Text(text = cartItems.size.toString())
                                             }
+                                        }
                                         }
                                     ) {
                                         Icon(
@@ -169,13 +176,15 @@ fun MainScreen(
         NavHost(
             navController = navController,
             startDestination = Screen.Home.route,
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize().padding(bottom = innerPadding.calculateBottomPadding())
         ) {
             composable(Screen.Home.route) {
                 val productViewModel: ProductViewModel = hiltViewModel()
+                val productState by productViewModel.state.collectAsState()
+                
                 HomeScreen(
-                    productState = productViewModel.state.value,
-                    favoriteIds = favoriteIds, // Artık anlık takip ediliyor
+                    productState = productState,
+                    favoriteIds = favoriteIds,
                     onAddToCart = { product ->
                         cartViewModel.addToCart(product)
                     },
@@ -188,6 +197,17 @@ fun MainScreen(
                     },
                     onFavoriteClick = { productId ->
                         favoriteViewModel.toggleFavorite(productId)
+                    },
+                    onSearch = { query ->
+                        productViewModel.clearSuggestions() // Önerileri temizle
+                        navController.navigate(Screen.Search.createRoute(query))
+                    },
+                    onSearchQueryChange = { query ->
+                        productViewModel.onSearchQueryChanged(query)
+                    },
+                    onSuggestionClick = { selectedQuery ->
+                        productViewModel.clearSuggestions()
+                        navController.navigate(Screen.Search.createRoute(selectedQuery))
                     }
                 )
             }
@@ -216,16 +236,43 @@ fun MainScreen(
                     },
                     onFavoriteClick = { productId ->
                         favoriteViewModel.toggleFavorite(productId)
+                    },
+                    onSearch = { query ->
+                        navController.navigate(Screen.Search.createRoute(query))
+                    }
+                )
+            }
+            composable(Screen.Search.route) {
+                val searchViewModel: SearchViewModel = hiltViewModel()
+                SearchScreen(
+                    viewModel = searchViewModel,
+                    favoriteIds = favoriteIds,
+                    onBackClick = { navController.popBackStack() },
+                    onProductClick = { productId ->
+                        navController.navigate(Screen.ProductDetail.createRoute(productId))
+                    },
+                    onAddToCart = { product ->
+                        cartViewModel.addToCart(product)
+                    },
+                    onFavoriteClick = { productId ->
+                        favoriteViewModel.toggleFavorite(productId)
+                    },
+                    onSearch = { query ->
+                        // Mevcut arama sayfasındayken yeni arama yapılırsa
+                        navController.navigate(Screen.Search.createRoute(query)) {
+                            popUpTo(Screen.Search.route) { inclusive = true }
+                        }
                     }
                 )
             }
             composable(Screen.ProductDetail.route) {
                 val detailViewModel: ProductDetailViewModel = hiltViewModel()
-                val product = detailViewModel.state.value.product
+                val detailState by detailViewModel.state.collectAsState()
+                val product = detailState.product
                 
                 ProductDetailScreen(
                     viewModel = detailViewModel,
-                    cartItemCount = cartViewModel.cartItems.size,
+                    cartItemCount = cartItems.size,
                     isFavorite = product?.let { favoriteIds.contains(it.id) } ?: false,
                     onBackClick = { navController.popBackStack() },
                     onCartClick = {
@@ -240,25 +287,58 @@ fun MainScreen(
                     onAddToCart = { p -> cartViewModel.addToCart(p) },
                     onFavoriteClick = {
                         product?.let { favoriteViewModel.toggleFavorite(it.id) }
+                    },
+                    onSearch = { query ->
+                        navController.navigate(Screen.Search.createRoute(query))
                     }
                 )
             }
             composable(Screen.Cart.route) {
-                // Sepet İçeriği
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(text = "Sepet Sayfası - Yakında burada ürünlerinizi göreceksiniz!")
+                val productViewModel: ProductViewModel = hiltViewModel()
+                val products = productViewModel.state.collectAsState().value.products
+                
+                // Önerileri güncelle
+                LaunchedEffect(products, cartItems) {
+                    cartViewModel.updateSuggestedProducts(products)
                 }
+
+                CartScreen(
+                    cartItems = cartItems,
+                    favoriteProducts = favoriteViewModel.state.collectAsState().value.allFavoriteProducts,
+                    suggestedProducts = suggestedProducts,
+                    favoriteIds = favoriteIds,
+                    onProductClick = { productId ->
+                        navController.navigate(Screen.ProductDetail.createRoute(productId))
+                    },
+                    onRemoveFromCart = { product ->
+                        cartViewModel.removeFromCart(product)
+                    },
+                    onFavoriteClick = { productId ->
+                        favoriteViewModel.toggleFavorite(productId)
+                    },
+                    onAddToCart = { product ->
+                        cartViewModel.addToCart(product)
+                    }
+                )
             }
             composable(Screen.Profile.route) {
                 val viewModel: ProfileViewModel = hiltViewModel()
                 ProfileScreen(
                     viewModel = viewModel,
                     onLogout = {
-                        favoriteManager.clearData() // Favori listesini temizle
+                        favoriteRepository.clearData()
                         onLogout()
+                    },
+                    onFavoritesClick = {
+                        // Terminoloji: Unified Tab Switch
+                        // Profil sayfasından favorilere geçerken sanki alt bardaki ikona basılmış gibi davranıyoruz
+                        navController.navigate(Screen.Favorites.route) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
                     }
                 )
             }

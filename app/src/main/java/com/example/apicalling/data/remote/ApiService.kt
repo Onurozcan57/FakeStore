@@ -8,6 +8,7 @@ import com.example.apicalling.data.model.UserListResponse
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Path
+import retrofit2.http.Query
 import retrofit2.http.POST
 
 interface ApiService {
@@ -25,6 +26,9 @@ interface ApiService {
 
     @GET("products/category/{slug}")
     suspend fun getProductsByCategory(@Path("slug") slug: String): ProductListResponse
+
+    @GET("products/search")
+    suspend fun searchProducts(@Query("q") query: String): ProductListResponse
 
     @GET("products/{id}")
     suspend fun getProduct(@retrofit2.http.Path("id") id: Int): ProductDto

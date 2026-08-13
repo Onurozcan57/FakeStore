@@ -10,6 +10,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -27,6 +28,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -43,14 +45,16 @@ import kotlinx.coroutines.launch
 @Composable
 fun CategoryDetailScreen(
     viewModel: CategoryDetailViewModel,
-    favoriteIds: Set<Int>, // Yeni: Favori durumları
+    favoriteIds: Set<Int>,
     onBackClick: () -> Unit,
     onProductClick: (Int) -> Unit,
     onAddToCart: (ProductDto) -> Unit,
-    onFavoriteClick: (Int) -> Unit // Yeni: Favori tıklama
+    onFavoriteClick: (Int) -> Unit,
+    onSearch: (String) -> Unit // Yeni: Arama aksiyonu
 ) {
-    val state = viewModel.state.value
+    val state by viewModel.state.collectAsState()
     val categoryName = state.categoryName.replaceFirstChar { it.uppercase() }
+    var searchQuery by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
     
     val sortSheetState = rememberModalBottomSheetState()
@@ -78,15 +82,37 @@ fun CategoryDetailScreen(
                     ) {
                         Icon(imageVector = Icons.Default.Search, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = buildAnnotatedString {
-                                append("$categoryName ")
-                                withStyle(style = SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)) {
-                                    append("(${state.filteredProducts.size})")
+                        
+                        BasicTextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                            keyboardActions = KeyboardActions(
+                                onSearch = {
+                                    if (searchQuery.isNotBlank()) {
+                                        onSearch(searchQuery)
+                                    }
                                 }
-                            },
-                            fontSize = 14.sp,
-                            color = Color.DarkGray
+                            ),
+                            decorationBox = { inner ->
+                                Box(contentAlignment = Alignment.CenterStart) {
+                                    if (searchQuery.isEmpty()) {
+                                        Text(
+                                            text = buildAnnotatedString {
+                                                append("$categoryName ")
+                                                withStyle(style = SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)) {
+                                                    append("(${state.filteredProducts.size})")
+                                                }
+                                            },
+                                            fontSize = 14.sp,
+                                            color = Color.DarkGray
+                                        )
+                                    }
+                                    inner()
+                                }
+                            }
                         )
                     }
                 },
@@ -105,6 +131,8 @@ fun CategoryDetailScreen(
                     .background(Color.White)
                     .verticalScroll(rememberScrollState())
             ) {
+                // RelatedCategoriesSection() // (Yorum satırına alındı)
+
                 FilterSortRow(
                     onSortClick = { showSortSheet = true },
                     onFilterClick = { showFilterSheet = true }

@@ -15,4 +15,7 @@ sealed class Screen(val route: String) {
     object CategoryDetail : Screen("category_detail/{categorySlug}") {
         fun createRoute(categorySlug: String) = "category_detail/$categorySlug"
     }
+    object Search : Screen("search/{query}") {
+        fun createRoute(query: String) = "search/$query"
+    }
 }

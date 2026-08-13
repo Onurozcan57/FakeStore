@@ -19,4 +19,8 @@ class ProductRepositoryImpl @Inject constructor(
     override suspend fun getProductsByCategory(category: String): List<ProductDto> {
         return apiService.getProductsByCategory(category).products
     }
+
+    override suspend fun searchProducts(query: String): List<ProductDto> {
+        return apiService.searchProducts(query).products
+    }
 }

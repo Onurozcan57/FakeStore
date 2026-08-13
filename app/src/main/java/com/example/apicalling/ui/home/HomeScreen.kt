@@ -2,6 +2,7 @@ package com.example.apicalling.ui.home
 
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -11,6 +12,9 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -23,6 +27,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -57,26 +62,14 @@ fun HomeScreen(
     onAddToCart: (ProductDto) -> Unit,
     onProductClick: (Int) -> Unit,
     onCategoryClick: (String) -> Unit,
-    onFavoriteClick: (Int) -> Unit
+    onFavoriteClick: (Int) -> Unit,
+    onSearch: (String) -> Unit,
+    onSearchQueryChange: (String) -> Unit, // Yeni: Harf değişimini ViewModel'e bildirir
+    onSuggestionClick: (String) -> Unit // Yeni: Öneriye tıklandığında aramaya gider
 ) {
     var searchQuery by remember { mutableStateOf("") }
 
-    val randomProducts = remember(productState.products) {
-        productState.products.shuffled().take(26)
-    }
-
-    val dynamicCategories = remember(productState.products) {
-        productState.products
-            .groupBy { it.category }
-            .map { (categoryName, products) ->
-                Category(
-                    title = categoryName.replaceFirstChar { it.uppercase() },
-                    imageUrl = products.firstOrNull()?.thumbnail ?: "",
-                    slug = categoryName
-                )
-            }
-    }
-
+    // Kampanyalı ürünler (V2 kartlar için - Beauty kategorisi)
     val discountedProducts = productState.products
         .filter { it.category == "beauty" }
         .take(10)
@@ -94,45 +87,106 @@ fun HomeScreen(
             .background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState())
     ) {
+        // Mavi Arka Planlı Header (Terminoloji: Themed Floating Header)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(
                     color = MaterialTheme.colorScheme.primary,
-                    shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
+                    shape = RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp)
                 )
+                .statusBarsPadding()
+                .padding(bottom = 24.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(bottom = 16.dp, top = 0.dp, start = 16.dp, end = 16.dp)
-            ) {
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    placeholder = { Text("Ürün, kategori veya marka ara...", color = Color.Gray) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color.White, RoundedCornerShape(12.dp)),
-                    leadingIcon = {
-                        Icon(imageVector = Icons.Default.Search, contentDescription = "Ara", tint = Color.Gray)
-                    },
-                    shape = RoundedCornerShape(12.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color.Transparent,
-                        unfocusedBorderColor = Color.Transparent,
-                        cursorColor = MaterialTheme.colorScheme.primary
-                    ),
-                    singleLine = true
+            Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                // Uygulama Başlığı
+                Text(
+                    text = "FakeStore",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = Color.White,
+                    fontWeight = FontWeight.ExtraBold,
+                    modifier = Modifier.padding(bottom = 12.dp, top = 8.dp)
                 )
+
+                // Premium Yüzer Arama Çubuğu
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp),
+                        shape = RoundedCornerShape(25.dp),
+                        color = Color.White,
+                        shadowElevation = 8.dp
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(imageVector = Icons.Default.Search, contentDescription = "Ara", tint = Color.Gray, modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                                BasicTextField(
+                                    value = searchQuery,
+                                    onValueChange = { 
+                                        searchQuery = it
+                                        onSearchQueryChange(it) // ViewModel'e bildir
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    singleLine = true,
+                                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                                    keyboardActions = KeyboardActions(onSearch = { if (searchQuery.isNotBlank()) onSearch(searchQuery) }),
+                                    decorationBox = { innerTextField ->
+                                        if (searchQuery.isEmpty()) Text(text = "Ürün, kategori veya marka ara...", color = Color.Gray, fontSize = 14.sp)
+                                        innerTextField()
+                                    }
+                                )
+                            }
+                            IconButton(onClick = { }) {
+                                Icon(imageVector = Icons.Default.PhotoCamera, contentDescription = "Görselle Ara", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
+                            }
+                        }
+                    }
+
+                    // Arama Önerileri Paneli (Terminoloji: Search Suggestion Dropdown)
+                    if (productState.isSearching && productState.searchSuggestions.isNotEmpty()) {
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 55.dp) // Arama çubuğunun hemen altına
+                                .wrapContentHeight()
+                                .border(0.5.dp, Color.LightGray.copy(alpha = 0.3f), RoundedCornerShape(16.dp)),
+                        shape = RoundedCornerShape(16.dp),
+                        ) {
+                            Column(modifier = Modifier.padding(vertical = 8.dp)) {
+                                productState.searchSuggestions.take(6).forEach { suggestion ->
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable { 
+                                                onSuggestionClick(suggestion.title)
+                                                searchQuery = suggestion.title
+                                            }
+                                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(Icons.Default.Search, contentDescription = null, tint = Color.LightGray, modifier = Modifier.size(18.dp))
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Text(text = suggestion.title, fontSize = 14.sp, color = Color.DarkGray)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
 
         CampaignSlider(images = campaignImages)
 
-        if (dynamicCategories.isNotEmpty()) {
-            CategorySection(categories = dynamicCategories, onCategoryClick = onCategoryClick)
+        if (productState.categories.isNotEmpty()) {
+            CategorySection(categories = productState.categories, onCategoryClick = onCategoryClick)
         }
 
         if (discountedProducts.isNotEmpty()) {
@@ -157,10 +211,10 @@ fun HomeScreen(
             )
         )
 
-        if (randomProducts.isNotEmpty()) {
+        if (productState.randomProducts.isNotEmpty()) {
             GridProductSection(
                 title = "Günün Fırsatları",
-                products = randomProducts,
+                products = productState.randomProducts,
                 favoriteIds = favoriteIds,
                 onAddToCart = onAddToCart,
                 onProductClick = onProductClick,
@@ -284,7 +338,17 @@ fun PromoCard(promo: PromoItem) {
 @Composable
 fun HomeScreenPreview() {
     APIcallingTheme {
-        HomeScreen(productState = ProductState(), favoriteIds = emptySet(), onAddToCart = {}, onProductClick = {}, onCategoryClick = {}, onFavoriteClick = {})
+        HomeScreen(
+            productState = ProductState(), 
+            favoriteIds = emptySet(), 
+            onAddToCart = {}, 
+            onProductClick = {}, 
+            onCategoryClick = {}, 
+            onFavoriteClick = {},
+            onSearch = {},
+            onSearchQueryChange = {},
+            onSuggestionClick = {}
+        )
     }
 }
 

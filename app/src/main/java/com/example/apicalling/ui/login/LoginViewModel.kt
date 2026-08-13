@@ -5,7 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.apicalling.data.model.LoginRequest
-import com.example.apicalling.data.session.UserSession
+import com.example.apicalling.domain.repository.SessionRepository
 import com.example.apicalling.domain.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
@@ -14,7 +14,7 @@ import javax.inject.Inject
 @HiltViewModel
 class LoginViewModel @Inject constructor(
     private val userRepository: UserRepository,
-    private val userSession: UserSession
+    private val sessionRepository: SessionRepository
 ) : ViewModel() {
 
     // UI'ın dinleyeceği state (Encapsulation: dışarıdan değiştirilemez)
@@ -36,7 +36,7 @@ class LoginViewModel @Inject constructor(
                 val fullUser = userRepository.getUser(loginResponse.id)
                 
                 // İstek başarılı olduysa kullanıcı bilgileri dönecektir
-                userSession.saveSession(fullUser)
+                sessionRepository.saveSession(fullUser)
                 _state.value = LoginState(successUser = fullUser)
             } catch (e: Exception) {
                 // Hatalı şifre veya ağ hatası durumunda buraya düşer

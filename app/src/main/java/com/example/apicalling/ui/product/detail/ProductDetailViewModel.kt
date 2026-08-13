@@ -1,12 +1,14 @@
 package com.example.apicalling.ui.product.detail
 
-import androidx.compose.runtime.State
-import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.apicalling.domain.repository.ProductRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -16,11 +18,10 @@ class ProductDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
-    private val _state = mutableStateOf(ProductDetailState())
-    val state: State<ProductDetailState> = _state
+    private val _state = MutableStateFlow(ProductDetailState())
+    val state: StateFlow<ProductDetailState> = _state.asStateFlow()
 
     init {
-        // Navigasyondan gelen productId'yi alıyoruz
         savedStateHandle.get<String>("productId")?.let { id ->
             getProduct(id.toInt())
         }
@@ -28,12 +29,12 @@ class ProductDetailViewModel @Inject constructor(
 
     private fun getProduct(id: Int) {
         viewModelScope.launch {
-            _state.value = ProductDetailState(isLoading = true)
+            _state.update { it.copy(isLoading = true) }
             try {
                 val product = productRepository.getProduct(id)
-                _state.value = ProductDetailState(product = product)
+                _state.update { it.copy(isLoading = false, product = product, error = null) }
             } catch (e: Exception) {
-                _state.value = ProductDetailState(error = "Ürün detayları yüklenemedi: ${e.localizedMessage}")
+                _state.update { it.copy(isLoading = false, error = "Ürün detayları yüklenemedi.") }
             }
         }
     }
