@@ -7,6 +7,7 @@ sealed class Screen(val route: String) {
     object Market : Screen("market")
     object Profile : Screen("profile")
     object Favorites : Screen("favorites") // Yeni: Favoriler Rotası
+    object Coupons : Screen("coupons") // Yeni: Kuponlar Rotası
     object Cart : Screen("cart")
     object Checkout : Screen("checkout")
     object ProductDetail : Screen("product_detail/{productId}") {

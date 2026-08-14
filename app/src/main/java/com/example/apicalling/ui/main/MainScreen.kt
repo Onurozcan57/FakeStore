@@ -42,6 +42,8 @@ import com.example.apicalling.ui.search.SearchScreen
 import com.example.apicalling.ui.search.SearchViewModel
 import com.example.apicalling.ui.favorites.FavoriteScreen
 import com.example.apicalling.ui.favorites.FavoriteViewModel
+import com.example.apicalling.ui.coupon.CouponScreen
+import com.example.apicalling.ui.coupon.CouponViewModel
 import com.example.apicalling.ui.home.HomeScreen
 import com.example.apicalling.ui.navigation.Screen
 import com.example.apicalling.ui.product.ProductViewModel
@@ -295,7 +297,14 @@ fun MainScreen(
             }
             composable(Screen.Cart.route) {
                 val productViewModel: ProductViewModel = hiltViewModel()
+                val couponViewModel: CouponViewModel = hiltViewModel()
+                
                 val products = productViewModel.state.collectAsState().value.products
+                val couponState by couponViewModel.state.collectAsState()
+                
+                val appliedCoupon by cartViewModel.appliedCoupon.collectAsState()
+                val discount by cartViewModel.discount.collectAsState()
+                val couponError by cartViewModel.couponError.collectAsState()
                 
                 // Önerileri güncelle
                 LaunchedEffect(products, cartItems) {
@@ -307,6 +316,10 @@ fun MainScreen(
                     favoriteProducts = favoriteViewModel.state.collectAsState().value.allFavoriteProducts,
                     suggestedProducts = suggestedProducts,
                     favoriteIds = favoriteIds,
+                    appliedCoupon = appliedCoupon,
+                    availableCoupons = couponState.coupons,
+                    discount = discount,
+                    couponError = couponError,
                     onProductClick = { productId ->
                         navController.navigate(Screen.ProductDetail.createRoute(productId))
                     },
@@ -318,6 +331,29 @@ fun MainScreen(
                     },
                     onAddToCart = { product ->
                         cartViewModel.addToCart(product)
+                    },
+                    onApplyCoupon = { code ->
+                        cartViewModel.applyCoupon(code)
+                    },
+                    onRemoveCoupon = {
+                        cartViewModel.removeCoupon()
+                    }
+                )
+            }
+            composable(Screen.Coupons.route) {
+                val couponViewModel: CouponViewModel = hiltViewModel()
+                CouponScreen(
+                    viewModel = couponViewModel,
+                    onBackClick = { navController.popBackStack() },
+                    onUseCoupon = { code ->
+                        cartViewModel.applyCoupon(code)
+                        navController.navigate(Screen.Cart.route) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
                     }
                 )
             }
@@ -339,6 +375,9 @@ fun MainScreen(
                             launchSingleTop = true
                             restoreState = true
                         }
+                    },
+                    onCouponsClick = {
+                        navController.navigate(Screen.Coupons.route)
                     }
                 )
             }

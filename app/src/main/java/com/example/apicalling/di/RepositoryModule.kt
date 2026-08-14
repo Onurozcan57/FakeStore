@@ -1,13 +1,7 @@
 package com.example.apicalling.di
 
-import com.example.apicalling.data.repository.FavoriteRepositoryImpl
-import com.example.apicalling.data.repository.ProductRepositoryImpl
-import com.example.apicalling.data.repository.UserRepositoryImpl
-import com.example.apicalling.domain.repository.FavoriteRepository
-import com.example.apicalling.domain.repository.ProductRepository
-import com.example.apicalling.domain.repository.UserRepository
-import com.example.apicalling.data.repository.SessionRepositoryImpl
-import com.example.apicalling.domain.repository.SessionRepository
+import com.example.apicalling.data.repository.*
+import com.example.apicalling.domain.repository.*
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -41,4 +35,10 @@ abstract class RepositoryModule {
     abstract fun bindSessionRepository(
         sessionRepositoryImpl: SessionRepositoryImpl
     ): SessionRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindCouponRepository(
+        couponRepositoryImpl: CouponRepositoryImpl
+    ): CouponRepository
 }

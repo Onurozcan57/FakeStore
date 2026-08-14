@@ -33,7 +33,8 @@ import kotlinx.coroutines.launch
 fun ProfileScreen(
     viewModel: ProfileViewModel? = null,
     onLogout: () -> Unit = {},
-    onFavoritesClick: () -> Unit = {}
+    onFavoritesClick: () -> Unit = {},
+    onCouponsClick: () -> Unit = {} // Yeni: Kuponlar Tıklama
 ) {
     val user = viewModel?.user?.value
     val sheetState = rememberModalBottomSheetState()
@@ -125,7 +126,7 @@ fun ProfileScreen(
             ProfileMenuItem(
                 title = "Kuponlarım",
                 icon = Icons.Default.ConfirmationNumber,
-                onClick = { /* TODO */ }
+                onClick = onCouponsClick
             )
             ProfileMenuItem(
                 title = "Kartlarım",

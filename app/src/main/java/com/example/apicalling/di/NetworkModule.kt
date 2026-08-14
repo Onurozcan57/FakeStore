@@ -2,6 +2,7 @@ package com.example.apicalling.di
 
 import com.example.apicalling.data.remote.ApiService
 import com.example.apicalling.data.remote.FavoriteApiService
+import com.example.apicalling.data.remote.CouponApiService
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -52,5 +53,16 @@ object NetworkModule {
             .client(okHttpClient)
             .build()
             .create(FavoriteApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideCouponApiService(okHttpClient: OkHttpClient): CouponApiService {
+        return Retrofit.Builder()
+            .baseUrl(CouponApiService.FIREBASE_URL)
+            .addConverterFactory(GsonConverterFactory.create())
+            .client(okHttpClient)
+            .build()
+            .create(CouponApiService::class.java)
     }
 }

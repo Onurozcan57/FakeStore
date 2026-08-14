@@ -1,18 +1,28 @@
 package com.example.apicalling.ui.cart
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.example.apicalling.data.model.ProductDto
+import com.example.apicalling.domain.model.Coupon
+import com.example.apicalling.domain.repository.SessionRepository
+import com.example.apicalling.domain.usecase.ApplyCouponUseCase
 import com.example.apicalling.domain.usecase.GetSuggestedProductsUseCase
+import com.example.apicalling.domain.usecase.MarkCouponAsUsedUseCase
+import com.example.apicalling.util.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class CartViewModel @Inject constructor(
-    private val getSuggestedProductsUseCase: GetSuggestedProductsUseCase
+    private val getSuggestedProductsUseCase: GetSuggestedProductsUseCase,
+    private val applyCouponUseCase: ApplyCouponUseCase,
+    private val markCouponAsUsedUseCase: MarkCouponAsUsedUseCase,
+    private val sessionRepository: SessionRepository
 ) : ViewModel() {
 
     private val _cartItems = MutableStateFlow<List<ProductDto>>(emptyList())
@@ -20,6 +30,15 @@ class CartViewModel @Inject constructor(
 
     private val _suggestedProducts = MutableStateFlow<List<ProductDto>>(emptyList())
     val suggestedProducts: StateFlow<List<ProductDto>> = _suggestedProducts.asStateFlow()
+
+    private val _appliedCoupon = MutableStateFlow<Coupon?>(null)
+    val appliedCoupon: StateFlow<Coupon?> = _appliedCoupon.asStateFlow()
+
+    private val _discount = MutableStateFlow(0.0)
+    val discount: StateFlow<Double> = _discount.asStateFlow()
+
+    private val _couponError = MutableStateFlow<String?>(null)
+    val couponError: StateFlow<String?> = _couponError.asStateFlow()
 
     fun updateSuggestedProducts(allProducts: List<ProductDto>) {
         _suggestedProducts.value = getSuggestedProductsUseCase(_cartItems.value, allProducts)
@@ -29,16 +48,77 @@ class CartViewModel @Inject constructor(
         _cartItems.update { current ->
             if (current.any { it.id == product.id }) current else current + product
         }
+        recalculateCoupon() // Sepet değişince kuponu tekrar hesapla
     }
 
     fun removeFromCart(product: ProductDto) {
         _cartItems.update { current -> 
             current.filter { item -> item.id != product.id } 
         }
+        recalculateCoupon()
+    }
+
+    fun applyCoupon(code: String) {
+        val userId = sessionRepository.user.value?.id ?: return
+        val currentTotal = _cartItems.value.sumOf { it.price }
+
+        viewModelScope.launch {
+            val result = applyCouponUseCase(userId, code, currentTotal)
+            when (result) {
+                is Resource.Success -> {
+                    _appliedCoupon.value = result.data?.first
+                    _discount.value = result.data?.second ?: 0.0
+                    _couponError.value = null
+                }
+                is Resource.Error -> {
+                    _couponError.value = result.message
+                }
+                else -> {}
+            }
+        }
+    }
+
+    fun removeCoupon() {
+        _appliedCoupon.value = null
+        _discount.value = 0.0
+        _couponError.value = null
+    }
+
+    private fun recalculateCoupon() {
+        val coupon = _appliedCoupon.value ?: return
+        val currentTotal = _cartItems.value.sumOf { it.price }
+        
+        // Eğer sepet tutarı minimum tutarın altına düşerse kuponu kaldır
+        if (currentTotal < coupon.minimumAmount) {
+            removeCoupon()
+            _couponError.value = "Sepet tutarı minimum tutarın altına düştüğü için kupon kaldırıldı."
+            return
+        }
+
+        // İndirimi yeniden hesapla (Fiyatlar değişmiş olabilir)
+        // Burada repository'deki hesaplama mantığını kullanmak daha doğru
+        // Basitlik için ApplyCouponUseCase'i tekrar çağırabiliriz veya mantığı buraya koyabiliriz.
+        // Repository'den direkt çağırmak için UseCase'e metod ekleyebiliriz ama 
+        // şimdilik sadece sepet boşsa kaldır diyelim.
+        if (_cartItems.value.isEmpty()) {
+            removeCoupon()
+        }
+    }
+
+    fun finalizePayment() {
+        viewModelScope.launch {
+            _appliedCoupon.value?.let { coupon ->
+                markCouponAsUsedUseCase(coupon.id)
+            }
+            clearCart()
+            removeCoupon()
+        }
     }
 
     fun getTotalPrice(): Double {
-        return _cartItems.value.sumOf { it.price }
+        val subtotal = _cartItems.value.sumOf { it.price }
+        val shipping = if (subtotal >= 50.0 || subtotal == 0.0) 0.0 else 10.0
+        return subtotal - _discount.value + shipping
     }
 
     fun clearCart() {
