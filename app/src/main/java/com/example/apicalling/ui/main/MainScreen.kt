@@ -36,6 +36,8 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.apicalling.ui.cart.CartScreen
 import com.example.apicalling.ui.cart.CartViewModel
+import com.example.apicalling.ui.checkout.CheckoutScreen
+import com.example.apicalling.ui.checkout.CheckoutViewModel
 import com.example.apicalling.ui.category.CategoryDetailScreen
 import com.example.apicalling.ui.category.CategoryDetailViewModel
 import com.example.apicalling.ui.search.SearchScreen
@@ -91,8 +93,9 @@ fun MainScreen(
     val currentDestination = navBackStackEntry?.destination
     
     // Terminoloji: Dynamic Bottom Bar Visibility
-    // Ürün detay sayfasındayken bottom bar'ı gizliyoruz.
-    val showBottomBar = currentDestination?.route != Screen.ProductDetail.route
+    // Ürün detay ve Ödeme sayfalarındayken bottom bar'ı gizliyoruz.
+    val showBottomBar = currentDestination?.route != Screen.ProductDetail.route && 
+                         currentDestination?.route != Screen.Checkout.route
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background, // Beyaz arka plan
@@ -337,7 +340,26 @@ fun MainScreen(
                     },
                     onRemoveCoupon = {
                         cartViewModel.removeCoupon()
+                    },
+                    onClearError = {
+                        cartViewModel.clearCouponError()
+                    },
+                    onCheckoutClick = {
+                        navController.navigate(Screen.Checkout.route)
                     }
+                )
+            }
+            composable(Screen.Checkout.route) {
+                val checkoutViewModel: CheckoutViewModel = hiltViewModel()
+                val discount by cartViewModel.discount.collectAsState()
+                val appliedCoupon by cartViewModel.appliedCoupon.collectAsState()
+                
+                CheckoutScreen(
+                    viewModel = checkoutViewModel,
+                    cartItems = cartItems,
+                    discount = discount,
+                    appliedCoupon = appliedCoupon,
+                    onBackClick = { navController.popBackStack() }
                 )
             }
             composable(Screen.Coupons.route) {

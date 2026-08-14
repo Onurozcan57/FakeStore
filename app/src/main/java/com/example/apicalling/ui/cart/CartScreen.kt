@@ -48,7 +48,9 @@ fun CartScreen(
     onFavoriteClick: (Int) -> Unit,
     onAddToCart: (ProductDto) -> Unit,
     onApplyCoupon: (String) -> Unit,
-    onRemoveCoupon: () -> Unit
+    onRemoveCoupon: () -> Unit,
+    onClearError: () -> Unit,
+    onCheckoutClick: () -> Unit // Yeni: Ödemeye geçiş aksiyonu
 ) {
     var isDetailExpanded by remember { mutableStateOf(false) }
     var showCouponSheet by remember { mutableStateOf(false) }
@@ -61,6 +63,7 @@ fun CartScreen(
     LaunchedEffect(couponError) {
         couponError?.let {
             snackbarHostState.showSnackbar(it)
+            onClearError() // Terminoloji: Consuming the Event
         }
     }
 
@@ -140,7 +143,8 @@ fun CartScreen(
                     totalPrice = cartItems.sumOf { it.price },
                     discount = discount,
                     isExpanded = isDetailExpanded,
-                    onExpandClick = { isDetailExpanded = !isDetailExpanded }
+                    onExpandClick = { isDetailExpanded = !isDetailExpanded },
+                    onCheckoutClick = onCheckoutClick
                 )
             }
         }
@@ -384,7 +388,15 @@ fun SuggestionsSection(suggestedProducts: List<ProductDto>, favoriteIds: Set<Int
 }
 
 @Composable
-fun CartBottomBar(totalPrice: Double, discount: Double, isExpanded: Boolean, onExpandClick: () -> Unit) {
+fun CartBottomBar(
+    totalPrice: Double, 
+    discount: Double, 
+    isExpanded: Boolean, 
+    onExpandClick: () -> Unit,
+    buttonText: String = "Ödemeye Geç",
+    isEnabled: Boolean = true, // Yeni: Buton aktiflik durumu
+    onCheckoutClick: () -> Unit = {}
+) {
     val shippingFee = 10.0
     val isFreeShipping = totalPrice >= 50.0
     val actualShipping = if (isFreeShipping || totalPrice == 0.0) 0.0 else shippingFee
@@ -420,8 +432,18 @@ fun CartBottomBar(totalPrice: Double, discount: Double, isExpanded: Boolean, onE
                     Text(text = "${String.format("%.2f", if (finalTotal < 0) 0.0 else finalTotal)} $", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
                     IconButton(onClick = onExpandClick) { Icon(imageVector = if (isExpanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp, contentDescription = null, tint = MaterialTheme.colorScheme.primary) }
                 }
-                Button(onClick = { }, modifier = Modifier.height(50.dp).width(170.dp), shape = RoundedCornerShape(25.dp), contentPadding = PaddingValues(horizontal = 8.dp), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)) {
-                    Text(text = "Ödemeye Geç", fontWeight = FontWeight.ExtraBold, color = Color.White, fontSize = 15.sp, maxLines = 1)
+                Button(
+                    onClick = onCheckoutClick, 
+                    enabled = isEnabled, // Buraya ekledik
+                    modifier = Modifier.height(50.dp).width(180.dp), 
+                    shape = RoundedCornerShape(25.dp), 
+                    contentPadding = PaddingValues(horizontal = 8.dp), 
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        disabledContainerColor = Color.Gray.copy(alpha = 0.5f) // Pasif renk
+                    )
+                ) {
+                    Text(text = buttonText, fontWeight = FontWeight.ExtraBold, color = Color.White, fontSize = 14.sp, maxLines = 1)
                 }
             }
         }

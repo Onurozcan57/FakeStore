@@ -84,6 +84,14 @@ class CartViewModel @Inject constructor(
         _couponError.value = null
     }
 
+    /**
+     * Terminoloji: Error State Reset
+     * Hata mesajı UI tarafından bir kez gösterildikten sonra temizlenir.
+     */
+    fun clearCouponError() {
+        _couponError.value = null
+    }
+
     private fun recalculateCoupon() {
         val coupon = _appliedCoupon.value ?: return
         val currentTotal = _cartItems.value.sumOf { it.price }

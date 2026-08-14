@@ -41,4 +41,16 @@ abstract class RepositoryModule {
     abstract fun bindCouponRepository(
         couponRepositoryImpl: CouponRepositoryImpl
     ): CouponRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindAddressRepository(
+        addressRepositoryImpl: AddressRepositoryImpl
+    ): AddressRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindPaymentRepository(
+        paymentRepositoryImpl: PaymentRepositoryImpl
+    ): PaymentRepository
 }

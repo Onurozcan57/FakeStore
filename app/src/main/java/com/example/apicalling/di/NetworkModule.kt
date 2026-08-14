@@ -3,6 +3,7 @@ package com.example.apicalling.di
 import com.example.apicalling.data.remote.ApiService
 import com.example.apicalling.data.remote.FavoriteApiService
 import com.example.apicalling.data.remote.CouponApiService
+import com.example.apicalling.data.remote.PaymentApiService
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -11,7 +12,16 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import javax.inject.Qualifier
 import javax.inject.Singleton
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class RenderBackend
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class FirebaseBackend
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -64,5 +74,29 @@ object NetworkModule {
             .client(okHttpClient)
             .build()
             .create(CouponApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
+    @RenderBackend
+    fun providePaymentApiService(okHttpClient: OkHttpClient): PaymentApiService {
+        return Retrofit.Builder()
+            .baseUrl(PaymentApiService.BASE_URL)
+            .addConverterFactory(GsonConverterFactory.create())
+            .client(okHttpClient)
+            .build()
+            .create(PaymentApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
+    @FirebaseBackend
+    fun provideFirebasePaymentApiService(okHttpClient: OkHttpClient): PaymentApiService {
+        return Retrofit.Builder()
+            .baseUrl(PaymentApiService.FIREBASE_URL)
+            .addConverterFactory(GsonConverterFactory.create())
+            .client(okHttpClient)
+            .build()
+            .create(PaymentApiService::class.java)
     }
 }
