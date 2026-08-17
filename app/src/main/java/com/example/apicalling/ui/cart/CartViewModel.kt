@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.example.apicalling.util.PriceUtils.USD_TO_TRY_RATE
 import javax.inject.Inject
 
 @HiltViewModel
@@ -124,9 +125,13 @@ class CartViewModel @Inject constructor(
     }
 
     fun getTotalPrice(): Double {
-        val subtotal = _cartItems.value.sumOf { it.price }
-        val shipping = if (subtotal >= 50.0 || subtotal == 0.0) 0.0 else 10.0
-        return subtotal - _discount.value + shipping
+        val subtotal = _cartItems.value.sumOf { it.price } * USD_TO_TRY_RATE
+        val discountInTry = _discount.value * USD_TO_TRY_RATE
+        val shippingLimit = 50.0 * USD_TO_TRY_RATE
+        val shippingFee = 10.0 * USD_TO_TRY_RATE
+        
+        val shipping = if (subtotal >= shippingLimit || subtotal == 0.0) 0.0 else shippingFee
+        return subtotal - discountInTry + shipping
     }
 
     fun clearCart() {

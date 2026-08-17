@@ -64,16 +64,11 @@ fun HomeScreen(
     onCategoryClick: (String) -> Unit,
     onFavoriteClick: (Int) -> Unit,
     onSearch: (String) -> Unit,
-    onSearchQueryChange: (String) -> Unit, // Yeni: Harf değişimini ViewModel'e bildirir
-    onSuggestionClick: (String) -> Unit // Yeni: Öneriye tıklandığında aramaya gider
+    onSearchQueryChange: (String) -> Unit,
+    onSuggestionClick: (String) -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
 
-    // Kampanyalı ürünler (V2 kartlar için - Beauty kategorisi)
-    val discountedProducts = productState.products
-        .filter { it.category == "beauty" }
-        .take(10)
-    
     val campaignImages = listOf(
         R.drawable.kampanya_2,
         R.drawable.kampanya_1,
@@ -81,13 +76,15 @@ fun HomeScreen(
         R.drawable.kampanya_4
     )
 
+    // 🏗️ ANA KONTEYNER (Terminoloji: Static Layout Container)
+    // Bu dış Column kaydırılabilir DEĞİLDİR. Bu sayede içindeki Header sabit kalır.
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .verticalScroll(rememberScrollState())
     ) {
-        // Mavi Arka Planlı Header (Terminoloji: Themed Floating Header)
+        // 🏛️ SABİT ÜST BAR (Terminoloji: Sticky Header)
+        // Scroll dışı olduğu için kullanıcı ne kadar kaydırırsa kaydırsın burası tepede çakılı kalır.
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -99,7 +96,6 @@ fun HomeScreen(
                 .padding(bottom = 24.dp)
         ) {
             Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-                // Uygulama Başlığı
                 Text(
                     text = "FakeStore",
                     style = MaterialTheme.typography.headlineSmall,
@@ -108,7 +104,6 @@ fun HomeScreen(
                     modifier = Modifier.padding(bottom = 12.dp, top = 8.dp)
                 )
 
-                // Premium Yüzer Arama Çubuğu
                 Box(modifier = Modifier.fillMaxWidth()) {
                     Surface(
                         modifier = Modifier
@@ -131,7 +126,7 @@ fun HomeScreen(
                                     value = searchQuery,
                                     onValueChange = { 
                                         searchQuery = it
-                                        onSearchQueryChange(it) // ViewModel'e bildir
+                                        onSearchQueryChange(it) 
                                     },
                                     modifier = Modifier.fillMaxWidth(),
                                     singleLine = true,
@@ -149,15 +144,14 @@ fun HomeScreen(
                         }
                     }
 
-                    // Arama Önerileri Paneli (Terminoloji: Search Suggestion Dropdown)
                     if (productState.isSearching && productState.searchSuggestions.isNotEmpty()) {
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(top = 55.dp) // Arama çubuğunun hemen altına
+                                .padding(top = 55.dp)
                                 .wrapContentHeight()
                                 .border(0.5.dp, Color.LightGray.copy(alpha = 0.3f), RoundedCornerShape(16.dp)),
-                        shape = RoundedCornerShape(16.dp),
+                            shape = RoundedCornerShape(16.dp),
                         ) {
                             Column(modifier = Modifier.padding(vertical = 8.dp)) {
                                 productState.searchSuggestions.take(6).forEach { suggestion ->
@@ -183,46 +177,58 @@ fun HomeScreen(
             }
         }
 
-        CampaignSlider(images = campaignImages)
+        // 📜 KAYDIRILABİLİR İÇERİK (Terminoloji: Scrollable Content Body)
+        // Burası bağımsız bir kaydırma alanıdır. 
+        // Modifier.weight(1f) ile ekranın kalan tüm yerini kaplamasını sağladık.
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+        ) {
+            CampaignSlider(images = campaignImages)
 
-        if (productState.categories.isNotEmpty()) {
-            CategorySection(categories = productState.categories, onCategoryClick = onCategoryClick)
-        }
+            if (productState.categories.isNotEmpty()) {
+                CategorySection(categories = productState.categories, onCategoryClick = onCategoryClick)
+            }
 
-        if (discountedProducts.isNotEmpty()) {
-            HorizontalProductSection(
-                title = "Kampanyadaki Ürünler",
-                products = discountedProducts,
-                favoriteIds = favoriteIds,
-                onAddToCart = onAddToCart,
-                onProductClick = onProductClick,
-                onFavoriteClick = onFavoriteClick
+            if (productState.products.isNotEmpty()) {
+                val discountedProducts = productState.products.filter { it.category == "beauty" }.take(10)
+                if (discountedProducts.isNotEmpty()) {
+                    HorizontalProductSection(
+                        title = "Kampanyadaki Ürünler",
+                        products = discountedProducts,
+                        favoriteIds = favoriteIds,
+                        onAddToCart = onAddToCart,
+                        onProductClick = onProductClick,
+                        onFavoriteClick = onFavoriteClick
+                    )
+                }
+            }
+
+            PromoSection(
+                title = "Sana Özel Kampanyalar",
+                promos = listOf(
+                    PromoItem("500 TL İndirim\nKaçırma", "https://dummyjson.com/public/img/products/1/thumbnail.jpg"),
+                    PromoItem("Anne & Çocuk\n%10 Net İndirim", "https://dummyjson.com/public/img/products/2/thumbnail.jpg"),
+                    PromoItem("Oyuncaklar\n%10 Net İndirim", "https://dummyjson.com/public/img/products/3/thumbnail.jpg"),
+                    PromoItem("Teknoloji\nUygun Fırsat", "https://dummyjson.com/public/img/products/4/thumbnail.jpg"),
+                    PromoItem("Spor & Outdoor\n%15 İndirim", "https://dummyjson.com/public/img/products/5/thumbnail.jpg")
+                )
             )
+
+            if (productState.randomProducts.isNotEmpty()) {
+                GridProductSection(
+                    title = "Günün Fırsatları",
+                    products = productState.randomProducts,
+                    favoriteIds = favoriteIds,
+                    onAddToCart = onAddToCart,
+                    onProductClick = onProductClick,
+                    onFavoriteClick = onFavoriteClick
+                )
+            }
+
+            Spacer(modifier = Modifier.height(110.dp))
         }
-
-        PromoSection(
-            title = "Sana Özel Kampanyalar",
-            promos = listOf(
-                PromoItem("500 TL İndirim\nKaçırma", "https://dummyjson.com/public/img/products/1/thumbnail.jpg"),
-                PromoItem("Anne & Çocuk\n%10 Net İndirim", "https://dummyjson.com/public/img/products/2/thumbnail.jpg"),
-                PromoItem("Oyuncaklar\n%10 Net İndirim", "https://dummyjson.com/public/img/products/3/thumbnail.jpg"),
-                PromoItem("Teknoloji\nUygun Fırsat", "https://dummyjson.com/public/img/products/4/thumbnail.jpg"),
-                PromoItem("Spor & Outdoor\n%15 İndirim", "https://dummyjson.com/public/img/products/5/thumbnail.jpg")
-            )
-        )
-
-        if (productState.randomProducts.isNotEmpty()) {
-            GridProductSection(
-                title = "Günün Fırsatları",
-                products = productState.randomProducts,
-                favoriteIds = favoriteIds,
-                onAddToCart = onAddToCart,
-                onProductClick = onProductClick,
-                onFavoriteClick = onFavoriteClick
-            )
-        }
-
-        Spacer(modifier = Modifier.height(110.dp))
     }
 }
 
@@ -263,15 +269,19 @@ fun HorizontalProductSection(
 ) {
     Column(modifier = Modifier.padding(top = 16.dp)) {
         Text(text = title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
-        LazyRow(modifier = Modifier.height(360.dp), contentPadding = PaddingValues(horizontal = 8.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        LazyRow(
+            modifier = Modifier.wrapContentHeight(), 
+            contentPadding = PaddingValues(horizontal = 12.dp), 
+            horizontalArrangement = Arrangement.spacedBy(1.dp)
+        ) {
             items(products) { product ->
-                ProductCardV2(
+                ProductCardV1(
                     product = product, 
                     isFavorite = favoriteIds.contains(product.id),
                     onFavoriteClick = { onFavoriteClick(product.id) },
                     onAddToCart = { onAddToCart(product) }, 
-                    onProductClick = onProductClick, 
-                    modifier = Modifier.width(220.dp)
+                    onProductClick = onProductClick,
+                    modifier = Modifier.width(135.dp)
                 )
             }
         }
@@ -299,7 +309,7 @@ fun GridProductSection(
                         onFavoriteClick = { onFavoriteClick(product.id) },
                         onAddToCart = { onAddToCart(product) }, 
                         onProductClick = onProductClick, 
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f).height(240.dp)
                     )
                 }
                 if (rowItems.size == 1) Spacer(modifier = Modifier.weight(1f))

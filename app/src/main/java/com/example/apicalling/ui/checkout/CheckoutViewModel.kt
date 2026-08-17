@@ -13,6 +13,7 @@ import com.example.apicalling.domain.repository.SessionRepository
 import com.example.apicalling.domain.usecase.CreatePaymentUseCase
 import com.example.apicalling.domain.usecase.SaveOrderUseCase
 import com.example.apicalling.domain.usecase.VerifyThreeDSUseCase
+import com.example.apicalling.util.PriceUtils.USD_TO_TRY_RATE
 import com.example.apicalling.util.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -116,9 +117,12 @@ class CheckoutViewModel @Inject constructor(
 
     fun confirmOrder(cartItems: List<ProductDto>, discount: Double, appliedCoupon: Coupon?) {
         val userId = sessionRepository.user.value?.id ?: return
-        val subtotal = cartItems.sumOf { it.price }
-        val shipping = if (subtotal >= 50.0) 0.0 else 10.0
-        val finalAmount = subtotal - discount + shipping
+        val subtotalInUsd = cartItems.sumOf { it.price }
+        val shippingInUsd = if (subtotalInUsd >= 50.0) 0.0 else 10.0
+        val finalAmountInUsd = subtotalInUsd - discount + shippingInUsd
+        
+        // Ödeme için TRY karşılığını hesapla
+        val finalAmountInTry = finalAmountInUsd * USD_TO_TRY_RATE
         val orderId = "ORDER-${System.currentTimeMillis()}"
 
         viewModelScope.launch {
@@ -127,7 +131,7 @@ class CheckoutViewModel @Inject constructor(
             val paymentRequest = PaymentRequest(
                 userId = userId,
                 orderId = orderId,
-                amount = finalAmount,
+                amount = finalAmountInTry, // Backend'e TL tutarı gönderiyoruz
                 cardNumber = _state.value.cardNumber,
                 expireMonth = _state.value.expiryMonth,
                 expireYear = _state.value.expiryYear,
@@ -147,10 +151,10 @@ class CheckoutViewModel @Inject constructor(
                         userId = userId,
                         orderId = orderId,
                         items = cartItems.map { OrderItem(it.id, it.title, it.price, 1, it.thumbnail) },
-                        subtotal = subtotal,
+                        subtotal = subtotalInUsd,
                         discount = discount,
-                        shipping = shipping,
-                        total = finalAmount,
+                        shipping = shippingInUsd,
+                        total = finalAmountInUsd,
                         appliedCoupon = appliedCoupon?.code,
                         address = selectedAddress,
                         paymentId = paymentId,

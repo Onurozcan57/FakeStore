@@ -31,6 +31,7 @@ import com.example.apicalling.data.model.ProductDto
 import com.example.apicalling.domain.model.Coupon
 import com.example.apicalling.ui.components.ProductCardV1
 import com.example.apicalling.ui.components.ProductCardV2
+import com.example.apicalling.util.PriceUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -340,7 +341,7 @@ fun CartItemCard(product: ProductDto, onRemove: () -> Unit) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(product.title, maxLines = 2, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.Medium)
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("${product.price} $", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text(PriceUtils.formatUsdAsTry(product.price), fontWeight = FontWeight.Bold, fontSize = 16.sp)
             }
             IconButton(onClick = onRemove) { Icon(Icons.Default.Delete, contentDescription = "Sil", tint = Color.LightGray) }
         }
@@ -397,10 +398,14 @@ fun CartBottomBar(
     isEnabled: Boolean = true, // Yeni: Buton aktiflik durumu
     onCheckoutClick: () -> Unit = {}
 ) {
-    val shippingFee = 10.0
-    val isFreeShipping = totalPrice >= 50.0
-    val actualShipping = if (isFreeShipping || totalPrice == 0.0) 0.0 else shippingFee
-    val finalTotal = totalPrice - discount + actualShipping
+    val shippingLimit = 50.0 * PriceUtils.USD_TO_TRY_RATE
+    val shippingFee = 10.0 * PriceUtils.USD_TO_TRY_RATE
+    
+    val subtotalInTry = totalPrice * PriceUtils.USD_TO_TRY_RATE
+    val discountInTry = discount * PriceUtils.USD_TO_TRY_RATE
+    val isFreeShipping = subtotalInTry >= shippingLimit
+    val actualShipping = if (isFreeShipping || subtotalInTry == 0.0) 0.0 else shippingFee
+    val finalTotal = subtotalInTry - discountInTry + actualShipping
 
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         AnimatedVisibility(visible = isExpanded, enter = slideInVertically(initialOffsetY = { it }) + fadeIn(), exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()) {
@@ -408,20 +413,20 @@ fun CartBottomBar(
                 Column(modifier = Modifier.padding(20.dp)) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text("Ara Toplam", color = Color.Gray, fontSize = 14.sp)
-                        Text("${String.format("%.2f", totalPrice)} $", fontWeight = FontWeight.Bold)
+                        Text(PriceUtils.formatUsdAsTry(totalPrice), fontWeight = FontWeight.Bold)
                     }
-                    if (discount > 0) {
+                    if (discountInTry > 0) {
                         Spacer(modifier = Modifier.height(8.dp))
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text("Kupon İndirimi", color = Color.Gray, fontSize = 14.sp)
-                            Text("-${String.format("%.2f", discount)} $", color = Color.Red, fontWeight = FontWeight.Bold)
+                            Text("-${PriceUtils.formatUsdAsTry(discount)}", color = Color.Red, fontWeight = FontWeight.Bold)
                         }
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text("Kargo", color = Color.Gray, fontSize = 14.sp)
                         if (isFreeShipping) Text("Ücretsiz", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-                        else Text("${String.format("%.2f", shippingFee)} $", color = Color.Black, fontWeight = FontWeight.Bold)
+                        else Text(PriceUtils.formatTry(shippingFee), color = Color.Black, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -429,7 +434,7 @@ fun CartBottomBar(
         Surface(shadowElevation = 16.dp, color = Color.White, shape = RoundedCornerShape(32.dp), border = BorderStroke(0.5.dp, Color.LightGray.copy(alpha = 0.1f))) {
             Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = "${String.format("%.2f", if (finalTotal < 0) 0.0 else finalTotal)} $", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
+                    Text(text = PriceUtils.formatTry(if (finalTotal < 0) 0.0 else finalTotal), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
                     IconButton(onClick = onExpandClick) { Icon(imageVector = if (isExpanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp, contentDescription = null, tint = MaterialTheme.colorScheme.primary) }
                 }
                 Button(

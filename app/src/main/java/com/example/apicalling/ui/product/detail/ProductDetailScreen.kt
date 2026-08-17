@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.apicalling.data.model.ProductDto
 import com.example.apicalling.data.model.ReviewDto
+import com.example.apicalling.util.PriceUtils
 import kotlin.random.Random
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -136,7 +137,7 @@ fun ProductDetailScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "${product.price} $",
+                            text = PriceUtils.formatUsdAsTry(product.price),
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                             color = Color.Black
