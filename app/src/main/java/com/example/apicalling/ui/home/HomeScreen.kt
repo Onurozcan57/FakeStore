@@ -93,17 +93,9 @@ fun HomeScreen(
                     shape = RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp)
                 )
                 .statusBarsPadding()
-                .padding(bottom = 24.dp)
+                .padding(bottom = 12.dp)
         ) {
             Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-                Text(
-                    text = "FakeStore",
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = Color.White,
-                    fontWeight = FontWeight.ExtraBold,
-                    modifier = Modifier.padding(bottom = 12.dp, top = 8.dp)
-                )
-
                 Box(modifier = Modifier.fillMaxWidth()) {
                     Surface(
                         modifier = Modifier
@@ -124,9 +116,9 @@ fun HomeScreen(
                             Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
                                 BasicTextField(
                                     value = searchQuery,
-                                    onValueChange = { 
+                                    onValueChange = {
                                         searchQuery = it
-                                        onSearchQueryChange(it) 
+                                        onSearchQueryChange(it)
                                     },
                                     modifier = Modifier.fillMaxWidth(),
                                     singleLine = true,
@@ -138,12 +130,9 @@ fun HomeScreen(
                                     }
                                 )
                             }
-                            IconButton(onClick = { }) {
-                                Icon(imageVector = Icons.Default.PhotoCamera, contentDescription = "Görselle Ara", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
-                            }
+                            Icon(imageVector = Icons.Default.CameraAlt, contentDescription = "Görsel Arama", tint = Color.Gray, modifier = Modifier.size(20.dp))
                         }
                     }
-
                     if (productState.isSearching && productState.searchSuggestions.isNotEmpty()) {
                         Surface(
                             modifier = Modifier
@@ -215,7 +204,7 @@ fun HomeScreen(
                     PromoItem("Spor & Outdoor\n%15 İndirim", "https://dummyjson.com/public/img/products/5/thumbnail.jpg")
                 )
             )
-
+            CampaignSlider(images = campaignImages)
             if (productState.randomProducts.isNotEmpty()) {
                 GridProductSection(
                     title = "Günün Fırsatları",
@@ -227,16 +216,65 @@ fun HomeScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(110.dp))
+            Spacer(modifier = Modifier.height(20.dp))
+        }
+    }
+}
+@Composable
+fun CampaignSlider(images: List<Any>) {
+    val pagerState = rememberPagerState(pageCount = { images.size })
+    val scope = rememberCoroutineScope()
+    LaunchedEffect(key1 = pagerState.currentPage) {
+        delay(4000)
+        val nextPage = (pagerState.currentPage + 1) % images.size
+        scope.launch { pagerState.animateScrollToPage(page = nextPage, animationSpec = tween(durationMillis = 1000)) }
+    }
+    Column(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+        // Box kullanarak içerikleri üst üste bindirdik (Terminoloji: Layout Layering)
+        Box(modifier = Modifier.fillMaxWidth().height(110.dp)) {
+            HorizontalPager(
+                state = pagerState, 
+                contentPadding = PaddingValues(horizontal = 10.dp), 
+                pageSpacing = 10.dp, 
+                modifier = Modifier.fillMaxSize()
+            ) { page ->
+                Card(
+                    modifier = Modifier.fillMaxSize().clickable { }, 
+                    shape = RoundedCornerShape(16.dp), 
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    AsyncImage(
+                        model = images[page], 
+                        contentDescription = "Kampanya ${page + 1}", 
+                        modifier = Modifier.fillMaxSize(), 
+                        contentScale = ContentScale.Crop
+                    )
+                }
+            }
+
+            // Sol Alt Sayfa İndikatörü (Terminoloji: Bold Horizontal Badge)
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(start = 20.dp, bottom = 2.dp), // Kartın köşesine uyumlu konum
+                color = Color.Black.copy(alpha = 0.4f),
+                shape = RoundedCornerShape(30.dp) // Yatay uzunluk için kapsül form (Terminoloji: Capsule Shape)
+            ) {
+                Text(
+                    text = "${pagerState.currentPage + 1}/${images.size}", // Yatayda daha uzun görünmesi için çift boşluk
+                    color = Color.White,
+                    fontSize = 10.sp, // Font büyük yapıldı
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 0.dp) // Yatay uzun, üst boşluk sıfır
+                )
+            }
         }
     }
 }
 
 @Composable
 fun CategorySection(categories: List<Category>, onCategoryClick: (String) -> Unit) {
-    Column(modifier = Modifier.padding(top = 16.dp)) {
-        Text(text = "Kategoriler", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), color = Color.Black)
-        LazyRow(modifier = Modifier.height(100.dp), contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(modifier = Modifier.padding(top = 8.dp)) {
+        LazyRow(modifier = Modifier.height(76.dp), contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
             items(categories) { category ->
                 CategoryCard(category = category, onClick = { onCategoryClick(category.slug) })
             }
@@ -246,13 +284,13 @@ fun CategorySection(categories: List<Category>, onCategoryClick: (String) -> Uni
 
 @Composable
 fun CategoryCard(category: Category, onClick: () -> Unit) {
-    Card(modifier = Modifier.width(75.dp).fillMaxHeight().clickable { onClick() }, shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFEEEEEE))) {
+    Card(modifier = Modifier.width(72.dp).height(72.dp).clickable { onClick() }, shape = RoundedCornerShape(10.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFF6F6F6))) {
         Column(modifier = Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
-            Box(modifier = Modifier.fillMaxWidth().weight(0.65f).padding(6.dp), contentAlignment = Alignment.Center) {
+            Box(modifier = Modifier.fillMaxWidth().weight(0.65f).padding(0.dp), contentAlignment = Alignment.Center) {
                 AsyncImage(model = category.imageUrl, contentDescription = null, modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(8.dp)), contentScale = ContentScale.Fit)
             }
             Box(modifier = Modifier.fillMaxWidth().weight(0.35f).padding(bottom = 4.dp, start = 4.dp, end = 4.dp), contentAlignment = Alignment.Center) {
-                Text(text = category.title, style = MaterialTheme.typography.labelSmall, fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.DarkGray, textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(text = category.title, style = MaterialTheme.typography.labelSmall, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.DarkGray, textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
     }
@@ -267,7 +305,7 @@ fun HorizontalProductSection(
     onProductClick: (Int) -> Unit,
     onFavoriteClick: (Int) -> Unit
 ) {
-    Column(modifier = Modifier.padding(top = 16.dp)) {
+    Column(modifier = Modifier.padding(top = 0.dp)) {
         Text(text = title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
         LazyRow(
             modifier = Modifier.wrapContentHeight(), 
@@ -281,7 +319,7 @@ fun HorizontalProductSection(
                     onFavoriteClick = { onFavoriteClick(product.id) },
                     onAddToCart = { onAddToCart(product) }, 
                     onProductClick = onProductClick,
-                    modifier = Modifier.width(135.dp)
+                    modifier = Modifier.width(125.dp) // Genişlik buradan kontrol ediliyor
                 )
             }
         }
@@ -297,11 +335,11 @@ fun GridProductSection(
     onProductClick: (Int) -> Unit,
     onFavoriteClick: (Int) -> Unit
 ) {
-    Column(modifier = Modifier.padding(top = 16.dp)) {
+    Column(modifier = Modifier.padding(top = 0.dp)) {
         Text(text = title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), color = Color.Black)
         val rows = products.chunked(2)
         rows.forEach { rowItems ->
-            Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp), horizontalArrangement = Arrangement.spacedBy(0.dp)) {
                 for (product in rowItems) {
                     ProductCardV1(
                         product = product, 
@@ -320,9 +358,9 @@ fun GridProductSection(
 
 @Composable
 fun PromoSection(title: String, promos: List<PromoItem>) {
-    Column(modifier = Modifier.padding(top = 16.dp)) {
+    Column(modifier = Modifier.padding(top = 0.dp)) {
         Text(text = title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), color = Color.Black)
-        LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.height(110.dp)) {
+        LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.height(110.dp)) {
             items(promos) { promo ->
                 PromoCard(promo = promo)
             }
@@ -362,26 +400,3 @@ fun HomeScreenPreview() {
     }
 }
 
-@Composable
-fun CampaignSlider(images: List<Any>) {
-    val pagerState = rememberPagerState(pageCount = { images.size })
-    val scope = rememberCoroutineScope()
-    LaunchedEffect(key1 = pagerState.currentPage) {
-        delay(4000)
-        val nextPage = (pagerState.currentPage + 1) % images.size
-        scope.launch { pagerState.animateScrollToPage(page = nextPage, animationSpec = tween(durationMillis = 1000)) }
-    }
-    Column(modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) {
-        HorizontalPager(state = pagerState, contentPadding = PaddingValues(horizontal = 10.dp), pageSpacing = 10.dp, modifier = Modifier.fillMaxWidth().height(150.dp)) { page ->
-            Card(modifier = Modifier.fillMaxSize().clickable { }, shape = RoundedCornerShape(16.dp), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
-                AsyncImage(model = images[page], contentDescription = "Kampanya ${page + 1}", modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-            }
-        }
-        Row(Modifier.height(20.dp).fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.Center) {
-            repeat(images.size) { iteration ->
-                val color = if (pagerState.currentPage == iteration) MaterialTheme.colorScheme.primary else Color.LightGray
-                Box(modifier = Modifier.padding(2.dp).clip(RoundedCornerShape(50)).background(color).size(8.dp))
-            }
-        }
-    }
-}

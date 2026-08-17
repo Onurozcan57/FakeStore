@@ -40,8 +40,7 @@ fun ProductCardV1(
 ) {
     Card(
         modifier = modifier
-            .width(100.dp) // Genişlik 100.dp yapıldı
-            .height(205.dp) 
+            .height(205.dp)
             .padding(2.dp)
             .clickable { onProductClick(product.id) },
         shape = RoundedCornerShape(8.dp),
@@ -54,7 +53,7 @@ fun ProductCardV1(
                 .fillMaxSize()
                 .padding(4.dp) 
         ) {
-            // 1. Ürün Görseli Alanı (Padding sıfırlandı)
+            // 1. Ürün Görseli Alanı
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -67,7 +66,7 @@ fun ProductCardV1(
                     model = product.thumbnail,
                     contentDescription = product.title,
                     contentScale = ContentScale.Fit,
-                    modifier = Modifier.fillMaxSize() // İç padding 0 yapıldı
+                    modifier = Modifier.fillMaxSize() 
                 )
 
                 // Favori Butonu
@@ -82,41 +81,41 @@ fun ProductCardV1(
                             imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                             contentDescription = null,
                             tint = if (isFavorite) MaterialTheme.colorScheme.primary else Color.Black,
-                            modifier = Modifier.size(15.dp)
+                            modifier = Modifier.size(14.dp)
                         )
                     }
                 }
             }
 
-            // 2. Alt Bilgi Grubu
+            // 2. Alt Bilgi Grubu (Resimle fiyat arası minimal)
             Column(
                 modifier = Modifier.fillMaxWidth().background(Color.White)
             ) {
                 Text(
                     text = product.title,
-                    fontSize = 11.sp, 
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF222222),
                     maxLines = 2,
-                    lineHeight = 14.sp,
+                    lineHeight = 15.sp,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp)
+                    modifier = Modifier.padding(horizontal = 4.dp).padding(top = 2.dp, bottom = 6.dp)
                 )
 
-                // 3. Fiyat Alanı (Resimle orantılı, kenarlardan boşluklu)
+                // 3. Fiyat Alanı
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(40.dp)
-                        .clip(RoundedCornerShape(6.dp)) // Köşeler resimle uyumlu
+                        .height(38.dp)
+                        .clip(RoundedCornerShape(6.dp)) 
                         .background(Color(0xFFF3F3F3))
-                        .padding(horizontal = 10.dp),
+                        .padding(horizontal = 8.dp),
                     contentAlignment = Alignment.CenterStart
                 ) {
                     Text(
                         text = PriceUtils.formatUsdAsTry(product.price),
-                        fontSize = 14.sp, 
-                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
                         color = Color.Black
                     )
                 }

@@ -87,13 +87,13 @@ fun CartScreen(
                     .verticalScroll(rememberScrollState())
             ) {
                 Surface(
-                    modifier = Modifier.fillMaxWidth().statusBarsPadding(),
+                    modifier = Modifier.padding(bottom = 12.dp).fillMaxWidth(),
                     color = Color.White,
                     shadowElevation = 0.5.dp
                 ) {
                     Text(
                         text = "Sepetim",
-                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        modifier = Modifier.fillMaxWidth().padding(8.dp),
                         textAlign = TextAlign.Center,
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
