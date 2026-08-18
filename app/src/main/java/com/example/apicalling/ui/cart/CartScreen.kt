@@ -128,7 +128,7 @@ fun CartScreen(
                     onAddToCart = onAddToCart
                 )
 
-                Spacer(modifier = Modifier.height(180.dp))
+                Spacer(modifier = Modifier.height(80.dp))
             }
         }
 
@@ -399,7 +399,7 @@ fun CartBottomBar(
     onCheckoutClick: () -> Unit = {}
 ) {
     val shippingLimit = 50.0 * PriceUtils.USD_TO_TRY_RATE
-    val shippingFee = 10.0 * PriceUtils.USD_TO_TRY_RATE
+    val shippingFee = 5.0 * PriceUtils.USD_TO_TRY_RATE
     
     val subtotalInTry = totalPrice * PriceUtils.USD_TO_TRY_RATE
     val discountInTry = discount * PriceUtils.USD_TO_TRY_RATE

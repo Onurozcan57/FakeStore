@@ -27,7 +27,7 @@ private val LightColorScheme = lightColorScheme(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun APIcallingTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    darkTheme: Boolean = false,
     // Dynamic color is disabled to ensure pure white background (Terminoloji: Solid Theme Consistency)
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit

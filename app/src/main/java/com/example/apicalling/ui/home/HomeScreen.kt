@@ -50,7 +50,7 @@ data class Category(
     val slug: String
 )
 
-data class PromoItem(val title: String, val imageUrl: String)
+data class PromoItem(val imageUrl: String)
 
 /**
  * Yeni Ana Sayfa tasarımı.
@@ -197,11 +197,11 @@ fun HomeScreen(
             PromoSection(
                 title = "Sana Özel Kampanyalar",
                 promos = listOf(
-                    PromoItem("500 TL İndirim\nKaçırma", "https://dummyjson.com/public/img/products/1/thumbnail.jpg"),
-                    PromoItem("Anne & Çocuk\n%10 Net İndirim", "https://dummyjson.com/public/img/products/2/thumbnail.jpg"),
-                    PromoItem("Oyuncaklar\n%10 Net İndirim", "https://dummyjson.com/public/img/products/3/thumbnail.jpg"),
-                    PromoItem("Teknoloji\nUygun Fırsat", "https://dummyjson.com/public/img/products/4/thumbnail.jpg"),
-                    PromoItem("Spor & Outdoor\n%15 İndirim", "https://dummyjson.com/public/img/products/5/thumbnail.jpg")
+                    PromoItem( "https://images.hepsiburada.net/banners/s/1/180-180/gra-213166-tr_(1)134314451170274296.png"),
+                    PromoItem( "https://images.hepsiburada.net/banners/s/1/180-180/hepsipay_masrafsiz_kredi-tr134166645835646551.png"),
+                    PromoItem( "https://images.hepsiburada.net/banners/s/1/180-180/gra-208444-elektronik-jenerik-tr134178755376258479.png"),
+                    PromoItem( "https://images.hepsiburada.net/banners/s/1/180-180/teknoloji_urunleri-tr134166457786456878134245119221869584.png"),
+                    PromoItem( "https://images.hepsiburada.net/banners/s/1/180-180/flas_teklif_flas_fiyat-tr-1134283971375217370.png")
                 )
             )
             CampaignSlider(images = campaignImages)
@@ -341,7 +341,7 @@ fun GridProductSection(
         rows.forEach { rowItems ->
             Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp), horizontalArrangement = Arrangement.spacedBy(0.dp)) {
                 for (product in rowItems) {
-                    ProductCardV1(
+                    ProductCardV2(
                         product = product, 
                         isFavorite = favoriteIds.contains(product.id),
                         onFavoriteClick = { onFavoriteClick(product.id) },
@@ -359,8 +359,8 @@ fun GridProductSection(
 @Composable
 fun PromoSection(title: String, promos: List<PromoItem>) {
     Column(modifier = Modifier.padding(top = 0.dp)) {
-        Text(text = title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), color = Color.Black)
-        LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.height(110.dp)) {
+        Text(text = title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, fontSize = 16.sp, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), color = Color.Black)
+        LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.height(80.dp)) {
             items(promos) { promo ->
                 PromoCard(promo = promo)
             }
@@ -370,15 +370,19 @@ fun PromoSection(title: String, promos: List<PromoItem>) {
 
 @Composable
 fun PromoCard(promo: PromoItem) {
-    Card(modifier = Modifier.width(110.dp).height(95.dp).clickable { }, shape = RoundedCornerShape(10.dp), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            Box(modifier = Modifier.fillMaxWidth().weight(0.6f).background(MaterialTheme.colorScheme.primary), contentAlignment = Alignment.Center) {
-                AsyncImage(model = promo.imageUrl, contentDescription = null, modifier = Modifier.padding(6.dp).fillMaxSize(), contentScale = ContentScale.Fit)
-            }
-            Box(modifier = Modifier.fillMaxWidth().weight(0.4f).background(Color(0xFFEEEEEE)).padding(horizontal = 4.dp, vertical = 4.dp), contentAlignment = Alignment.Center) {
-                Text(text = promo.title, fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.Black, textAlign = TextAlign.Center, lineHeight = 11.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            }
-        }
+    Card(
+        modifier = Modifier.width(80.dp).height(75.dp).clickable { },
+        shape = RoundedCornerShape(10.dp), 
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp), 
+        colors = CardDefaults.cardColors(containerColor = Color.White)
+    ) {
+        // Gereksiz Box ve Background kaldırıldı, resim kartı tam kaplayacak şekilde ayarlandı
+        AsyncImage(
+            model = promo.imageUrl, 
+            contentDescription = null, 
+            modifier = Modifier.fillMaxSize(), 
+            contentScale = ContentScale.Crop // Resmin kartı tam doldurması için
+        )
     }
 }
 
