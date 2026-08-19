@@ -5,12 +5,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -34,7 +33,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
+import com.example.apicalling.ui.components.OptimizedProductImage
 import com.example.apicalling.R
 import com.example.apicalling.ui.theme.APIcallingTheme
 import kotlinx.coroutines.delay
@@ -48,10 +47,12 @@ import com.example.apicalling.ui.product.ProductState
 data class Category(
     val title: String,
     val imageUrl: String,
-    val slug: String
+    val slug: String,
 )
 
-data class PromoItem(val imageUrl: String)
+data class PromoItem(
+    val imageUrl: String,
+)
 
 /**
  * Yeni Ana Sayfa tasarımı.
@@ -71,12 +72,14 @@ fun HomeScreen(
     var searchQuery by remember { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
 
-    val campaignImages = listOf(
-        R.drawable.kampanya_2,
-        R.drawable.kampanya_1,
-        R.drawable.kampanya_3,
-        R.drawable.kampanya_4
-    )
+    val campaignImages = remember {
+        listOf(
+            R.drawable.kampanya_2,
+            R.drawable.kampanya_1,
+            R.drawable.kampanya_3,
+            R.drawable.kampanya_4
+        )
+    }
 
     // 🏗️ ANA KONTEYNER (Overlay-First Architecture)
     Box(
@@ -85,64 +88,97 @@ fun HomeScreen(
             .background(MaterialTheme.colorScheme.background)
             .clickable(
                 enabled = productState.isSearching,
-                onClick = { 
-                    focusManager.clearFocus() // Klavyeyi ve odaklanmayı kapat
-                    onSearchQueryChange("") // Arama modundan çık (ViewModel üzerinden isSearching=false)
-                }
-            )
+            ) { 
+                focusManager.clearFocus() // Klavyeyi ve odaklanmayı kapat
+                onSearchQueryChange("") // Arama modundan çık (ViewModel üzerinden isSearching=false)
+            }
     ) {
-        // 📜 1. KATMAN: KAYDIRILABİLİR İÇERİK (Arka planda kayar)
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+        // 📜 1. KATMAN: KAYDIRILABİLİR İÇERİK (LazyColumn ile performans optimizasyonu)
+        LazyColumn(
+            modifier = Modifier.fillMaxSize()
         ) {
-            // Header yüksekliği kadar boşluk bırakıyoruz ki içerik Header'ın altında kalmasın
-            Spacer(modifier = Modifier.height(100.dp))
+            item {
+                // Header yüksekliği kadar boşluk bırakıyoruz
+                Spacer(modifier = Modifier.height(100.dp))
+            }
 
-            CampaignSlider(images = campaignImages)
+            item { CampaignSlider(images = campaignImages) }
 
             if (productState.categories.isNotEmpty()) {
-                CategorySection(categories = productState.categories, onCategoryClick = onCategoryClick)
+                item {
+                    CategorySection(categories = productState.categories, onCategoryClick = onCategoryClick)
+                }
             }
 
             if (productState.products.isNotEmpty()) {
-                val fragrancesProducts = productState.products.filter { it.category == "fragrances" }.take(10)
-                if (fragrancesProducts.isNotEmpty()) {
-                    HorizontalProductSection(
-                        title = "Son Gezdiğin Ürünler",
-                        products = fragrancesProducts,
-                        favoriteIds = favoriteIds,
-                        onAddToCart = onAddToCart,
-                        onProductClick = onProductClick,
-                        onFavoriteClick = onFavoriteClick
-                    )
+                if (productState.fragrancesProducts.isNotEmpty()) {
+                    item {
+                        HorizontalProductSection(
+                            title = "Son Gezdiğin Ürünler",
+                            products = productState.fragrancesProducts,
+                            favoriteIds = favoriteIds,
+                            onAddToCart = onAddToCart,
+                            onProductClick = onProductClick,
+                            onFavoriteClick = onFavoriteClick
+                        )
+                    }
                 }
             }
 
-            PromoSection(
-                title = "Sana Özel Kampanyalar",
-                promos = listOf(
-                    PromoItem( "https://images.hepsiburada.net/banners/s/1/180-180/gra-213166-tr_(1)134314451170274296.png"),
-                    PromoItem( "https://images.hepsiburada.net/banners/s/1/180-180/hepsipay_masrafsiz_kredi-tr134166645835646551.png"),
-                    PromoItem( "https://images.hepsiburada.net/banners/s/1/180-180/gra-208444-elektronik-jenerik-tr134178755376258479.png"),
-                    PromoItem( "https://images.hepsiburada.net/banners/s/1/180-180/teknoloji_urunleri-tr134166457786456878134245119221869584.png"),
-                    PromoItem( "https://images.hepsiburada.net/banners/s/1/180-180/flas_teklif_flas_fiyat-tr-1134283971375217370.png")
-                )
-            )
-            CampaignSlider(images = campaignImages)
-            if (productState.randomProducts.isNotEmpty()) {
-                GridProductSection(
-                    title = "Günün Fırsatları",
-                    products = productState.randomProducts,
-                    favoriteIds = favoriteIds,
-                    onAddToCart = onAddToCart,
-                    onProductClick = onProductClick,
-                    onFavoriteClick = onFavoriteClick
+            item {
+                PromoSection(
+                    title = "Sana Özel Kampanyalar",
+                    promos = listOf(
+                        PromoItem( "https://images.hepsiburada.net/banners/s/1/180-180/gra-213166-tr_(1)134314451170274296.png"),
+                        PromoItem( "https://images.hepsiburada.net/banners/s/1/180-180/hepsipay_masrafsiz_kredi-tr134166645835646551.png"),
+                        PromoItem( "https://images.hepsiburada.net/banners/s/1/180-180/gra-208444-elektronik-jenerik-tr134178755376258479.png"),
+                        PromoItem( "https://images.hepsiburada.net/banners/s/1/180-180/teknoloji_urunleri-tr134166457786456878134245119221869584.png"),
+                        PromoItem( "https://images.hepsiburada.net/banners/s/1/180-180/flas_teklif_flas_fiyat-tr-1134283971375217370.png")
+                    )
                 )
             }
+            
+            item { CampaignSlider(images = campaignImages) }
 
-            Spacer(modifier = Modifier.height(110.dp))
+            if (productState.randomProducts.isNotEmpty()) {
+                item {
+                    Text(
+                        text = "Günün Fırsatları", 
+                        style = MaterialTheme.typography.titleLarge, 
+                        fontWeight = FontWeight.Bold, 
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), 
+                        color = Color.Black
+                    )
+                }
+
+                // Mentorun isteği üzerine index tabanlı yönetim
+                items(
+                    count = productState.chunkedRandomProducts.size,
+                    key = { index -> productState.chunkedRandomProducts[index].firstOrNull()?.id ?: index }
+                ) { rowIndex ->
+                    val rowItems = productState.chunkedRandomProducts[rowIndex]
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(0.dp)
+                    ) {
+                        for (product in rowItems) {
+                            ProductCardV2(
+                                product = product, 
+                                isFavorite = favoriteIds.contains(product.id),
+                                onFavoriteClick = { onFavoriteClick(product.id) },
+                                onAddToCart = { onAddToCart(product) }, 
+                                onProductClick = onProductClick, 
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        if (rowItems.size == 1) Spacer(modifier = Modifier.weight(1f))
+                    }
+                }
+            }
+
+            item {
+                Spacer(modifier = Modifier.height(110.dp))
+            }
         }
 
         // 🏛️ 2. KATMAN: SABİT MAVİ ÜST BAR (Terminoloji: Solid Sticky Header)
@@ -251,8 +287,8 @@ fun CampaignSlider(images: List<Any>) {
                     shape = RoundedCornerShape(16.dp), 
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
-                    AsyncImage(
-                        model = images[page], 
+                    OptimizedProductImage(
+                        imageUrl = images[page].toString(), 
                         contentDescription = "Kampanya ${page + 1}", 
                         modifier = Modifier.fillMaxSize(), 
                         contentScale = ContentScale.Crop
@@ -287,8 +323,15 @@ fun CampaignSlider(images: List<Any>) {
 @Composable
 fun CategorySection(categories: List<Category>, onCategoryClick: (String) -> Unit) {
     Column(modifier = Modifier.padding(top = 8.dp)) {
-        LazyRow(modifier = Modifier.height(76.dp), contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-            items(categories) { category ->
+        LazyRow(
+            modifier = Modifier.height(76.dp), 
+            contentPadding = PaddingValues(horizontal = 16.dp), 
+            horizontalArrangement = Arrangement.spacedBy(5.dp)
+        ) {
+            items(
+                items = categories,
+                key = { it.slug }
+            ) { category ->
                 CategoryCard(category = category, onClick = { onCategoryClick(category.slug) })
             }
         }
@@ -300,7 +343,7 @@ fun CategoryCard(category: Category, onClick: () -> Unit) {
     Card(modifier = Modifier.width(72.dp).height(72.dp).clickable { onClick() }, shape = RoundedCornerShape(10.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFF6F6F6))) {
         Column(modifier = Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
             Box(modifier = Modifier.fillMaxWidth().weight(0.65f).padding(0.dp), contentAlignment = Alignment.Center) {
-                AsyncImage(model = category.imageUrl, contentDescription = null, modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(8.dp)), contentScale = ContentScale.Fit)
+                OptimizedProductImage(imageUrl = category.imageUrl, contentDescription = null, modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(8.dp)), contentScale = ContentScale.Fit)
             }
             Box(modifier = Modifier.fillMaxWidth().weight(0.35f).padding(bottom = 4.dp, start = 4.dp, end = 4.dp), contentAlignment = Alignment.Center) {
                 Text(text = category.title, style = MaterialTheme.typography.labelSmall, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.DarkGray, textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -325,7 +368,10 @@ fun HorizontalProductSection(
             contentPadding = PaddingValues(horizontal = 12.dp), 
             horizontalArrangement = Arrangement.spacedBy(1.dp)
         ) {
-            items(products) { product ->
+            items(
+                items = products,
+                key = { it.id }
+            ) { product ->
                 ProductCardV1(
                     product = product, 
                     isFavorite = favoriteIds.contains(product.id),
@@ -339,42 +385,20 @@ fun HorizontalProductSection(
     }
 }
 
-@Composable
-fun GridProductSection(
-    title: String, 
-    products: List<ProductDto>, 
-    favoriteIds: Set<Int>,
-    onAddToCart: (ProductDto) -> Unit, 
-    onProductClick: (Int) -> Unit,
-    onFavoriteClick: (Int) -> Unit
-) {
-    Column(modifier = Modifier.padding(top = 0.dp)) {
-        Text(text = title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), color = Color.Black)
-        val rows = products.chunked(2)
-        rows.forEach { rowItems ->
-            Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp), horizontalArrangement = Arrangement.spacedBy(0.dp)) {
-                for (product in rowItems) {
-                    ProductCardV2(
-                        product = product, 
-                        isFavorite = favoriteIds.contains(product.id),
-                        onFavoriteClick = { onFavoriteClick(product.id) },
-                        onAddToCart = { onAddToCart(product) }, 
-                        onProductClick = onProductClick, 
-                        modifier = Modifier.weight(1f) // height(240.dp) kaldırıldı, V2 kendi boyunu yönetecek
-                    )
-                }
-                if (rowItems.size == 1) Spacer(modifier = Modifier.weight(1f))
-            }
-        }
-    }
-}
 
 @Composable
 fun PromoSection(title: String, promos: List<PromoItem>) {
     Column(modifier = Modifier.padding(top = 0.dp)) {
         Text(text = title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, fontSize = 16.sp, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), color = Color.Black)
-        LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.height(80.dp)) {
-            items(promos) { promo ->
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 16.dp), 
+            horizontalArrangement = Arrangement.spacedBy(4.dp), 
+            modifier = Modifier.height(80.dp)
+        ) {
+            items(
+                items = promos,
+                key = { it.imageUrl }
+            ) { promo ->
                 PromoCard(promo = promo)
             }
         }
@@ -389,8 +413,8 @@ fun PromoCard(promo: PromoItem) {
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp), 
         colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
-        AsyncImage(
-            model = promo.imageUrl, 
+        OptimizedProductImage(
+            imageUrl = promo.imageUrl, 
             contentDescription = null, 
             modifier = Modifier.fillMaxSize(), 
             contentScale = ContentScale.Crop

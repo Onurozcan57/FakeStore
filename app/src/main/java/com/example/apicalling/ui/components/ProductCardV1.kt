@@ -16,13 +16,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
 import com.example.apicalling.data.model.ProductDto
 import com.example.apicalling.util.PriceUtils
 import java.util.*
@@ -37,9 +35,19 @@ fun ProductCardV1(
     isFavorite: Boolean,
     onFavoriteClick: () -> Unit,
     onProductClick: (Int) -> Unit,
+    modifier: Modifier = Modifier,
     onAddToCart: () -> Unit = {},
-    modifier: Modifier = Modifier
 ) {
+    val formattedPrice = remember(product.price) { PriceUtils.formatUsdAsTry(product.price) }
+    val isDiscounted = product.discountPercentage > 13.0
+    val originalPriceFormatted = remember(product.price, product.discountPercentage) {
+        if (isDiscounted) {
+            val originalPrice = product.price / (1 - product.discountPercentage / 100.0)
+            PriceUtils.formatUsdAsTry(originalPrice)
+        } else ""
+    }
+    val discountPercent = remember(product.discountPercentage) { product.discountPercentage.toInt() }
+
     Card(
         modifier = modifier
             .height(205.dp)
@@ -64,8 +72,8 @@ fun ProductCardV1(
                     .background(Color(0xFFF9F9F9)),
                 contentAlignment = Alignment.Center
             ) {
-                AsyncImage(
-                    model = product.thumbnail,
+                OptimizedProductImage(
+                    imageUrl = product.thumbnail,
                     contentDescription = product.title,
                     contentScale = ContentScale.Fit,
                     modifier = Modifier.fillMaxSize() 
@@ -73,13 +81,13 @@ fun ProductCardV1(
 
                 // 🌟 Kampanya Rozeti (Sol Üst - Dinamik)
                 if (product.discountPercentage >= 13.0) {
-                    val badgeUrl = if (product.discountPercentage >= 15.0)"https://images.hepsiburada.net/banners/s/1/104-105/app134056176801991801.png"
-                        // 3 Yıldız (Yüksek İndirim)
-                    else
-                    "https://images.hepsiburada.net/banners/s/1/104-105/app3134056183170135731.png"  // Tek Yıldız (Orta İndirim)
+                    val badgeUrl = remember(product.discountPercentage) {
+                        if (product.discountPercentage >= 15.0) "https://images.hepsiburada.net/banners/s/1/104-105/app134056176801991801.png"
+                        else "https://images.hepsiburada.net/banners/s/1/104-105/app3134056183170135731.png"
+                    }
 
-                    AsyncImage(
-                        model = badgeUrl,
+                    OptimizedProductImage(
+                        imageUrl = badgeUrl,
                         contentDescription = null,
                         modifier = Modifier
                             .align(Alignment.TopStart)
@@ -126,26 +134,25 @@ fun ProductCardV1(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(42.dp) // İndirimli fiyat için yükseklik artırıldı
+                        .height(42.dp) 
                         .clip(RoundedCornerShape(6.dp))
                         .background(Color(0xFFF3F3F3))
                         .padding(horizontal = 4.dp),
                     contentAlignment = Alignment.CenterStart
                 ) {
-                    if (product.discountPercentage > 13.0) { // %5 üzeri indirimleri gösteriyoruz
+                    if (isDiscounted) {
                         Column(verticalArrangement = Arrangement.Center) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                // Eski Fiyat (Gri ve Üstü Çizili)
-                                val originalPrice = product.price / (1 - product.discountPercentage / 100.0)
+                                // Eski Fiyat
                                 Text(
-                                    text = PriceUtils.formatUsdAsTry(originalPrice),
+                                    text = originalPriceFormatted,
                                     fontSize = 11.sp,
                                     color = Color.Gray,
                                     textDecoration = TextDecoration.LineThrough,
                                     maxLines = 1
                                 )
                                 Spacer(modifier = Modifier.width(2.dp))
-                                // İndirim Oranı (Yeşil Arka Plan, Beyaz Yazı)
+                                // İndirim Oranı
                                 Box(
                                     modifier = Modifier
                                         .background(
@@ -155,7 +162,7 @@ fun ProductCardV1(
                                         .padding(horizontal = 3.dp)
                                 ) {
                                     Text(
-                                        text = "%${product.discountPercentage.toInt()}",
+                                        text = "%$discountPercent",
                                         color = Color.White,
                                         fontSize = 10.sp,
                                         fontWeight = FontWeight.Bold,
@@ -163,9 +170,9 @@ fun ProductCardV1(
                                     )
                                 }
                             }
-                            // İndirimli Yeni Fiyat (Yeşil ve Büyük)
+                            // İndirimli Yeni Fiyat
                             Text(
-                                text = PriceUtils.formatUsdAsTry(product.price),
+                                text = formattedPrice,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = Color(0xFF228912),
@@ -176,7 +183,7 @@ fun ProductCardV1(
                     } else {
                         // İndirim Yoksa Normal Görünüm
                         Text(
-                            text = PriceUtils.formatUsdAsTry(product.price),
+                            text = formattedPrice,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = Color.Black

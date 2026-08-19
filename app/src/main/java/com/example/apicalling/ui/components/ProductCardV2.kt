@@ -1,7 +1,6 @@
 package com.example.apicalling.ui.components
 
 import androidx.compose.animation.*
-import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -33,7 +32,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
 import com.example.apicalling.data.model.ProductDto
 import com.example.apicalling.util.PriceUtils
 import kotlinx.coroutines.delay
@@ -50,13 +48,13 @@ fun ProductCardV2(
     onFavoriteClick: () -> Unit,
     onAddToCart: () -> Unit,
     onProductClick: (Int) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
-    var isAdded by remember { mutableStateOf(false) } // ID bağlantısı kaldırıldı
-    var isAnimating by remember { mutableStateOf(false) }
+    var isAdded by remember { mutableStateOf(value = false) } 
+    var isAnimating by remember { mutableStateOf(value = false) }
     val scope = rememberCoroutineScope()
 
-    // 🕒 6 Saniye Sonra Fiyata Geri Dönme Mantığı (Terminoloji: Transient State Reset)
+    // 🕒 6 Saniye Sonra Fiyata Geri Dönme Mantığı
     LaunchedEffect(isAdded) {
         if (isAdded) {
             delay(6000)
@@ -64,22 +62,37 @@ fun ProductCardV2(
         }
     }
 
-    // Dönme Animasyonu
-    val infiniteTransition = rememberInfiniteTransition(label = "loading")
-    val rotation by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "rotation"
-    )
+    val annotatedTitle = remember(product.title) {
+        val titleWords = product.title.split(" ")
+        buildAnnotatedString {
+            if (titleWords.isNotEmpty()) {
+                withStyle(style = SpanStyle(fontWeight = FontWeight.ExtraBold)) {
+                    append(titleWords[0])
+                }
+                if (titleWords.size > 1) {
+                    append(" ")
+                    withStyle(style = SpanStyle(fontWeight = FontWeight.Normal)) {
+                        append(titleWords.drop(1).joinToString(" "))
+                    }
+                }
+            }
+        }
+    }
+
+    val isDiscounted = product.discountPercentage > 13.0
+    val formattedPrice = remember(product.price) { PriceUtils.formatUsdAsTry(product.price) }
+    val originalPriceFormatted = remember(product.price, product.discountPercentage) {
+        if (isDiscounted) {
+            val originalPrice = product.price / (1 - product.discountPercentage / 100.0)
+            PriceUtils.formatUsdAsTry(originalPrice)
+        } else ""
+    }
+    val discountPercent = remember(product.discountPercentage) { product.discountPercentage.toInt() }
 
     Card(
         modifier = modifier
-            .width(90.dp) // V1'den daha dar
-            .height(350.dp) // V1'den daha uzun
+            .width(90.dp) 
+            .height(350.dp) 
             .padding(2.dp)
             .clickable { onProductClick(product.id) },
         shape = RoundedCornerShape(8.dp),
@@ -101,8 +114,8 @@ fun ProductCardV2(
                     .background(Color(0xFFF9F9F9)),
                 contentAlignment = Alignment.Center
             ) {
-                AsyncImage(
-                    model = product.thumbnail,
+                OptimizedProductImage(
+                    imageUrl = product.thumbnail,
                     contentDescription = product.title,
                     contentScale = ContentScale.Fit,
                     modifier = Modifier
@@ -112,12 +125,13 @@ fun ProductCardV2(
 
                 // 🌟 Kampanya Rozeti (Sol Üst - Dinamik)
                 if (product.discountPercentage >= 13.0) {
-                    val badgeUrl = if (product.discountPercentage >= 15.0) "https://images.hepsiburada.net/banners/s/1/104-105/app134056176801991801.png" // 3 Yıldız
-                    else
-                    "https://images.hepsiburada.net/banners/s/1/104-105/app3134056183170135731.png"  // Tek Yıldız
+                    val badgeUrl = remember(product.discountPercentage) {
+                        if (product.discountPercentage >= 15.0) "https://images.hepsiburada.net/banners/s/1/104-105/app134056176801991801.png"
+                        else "https://images.hepsiburada.net/banners/s/1/104-105/app3134056183170135731.png"
+                    }
 
-                    AsyncImage(
-                        model = badgeUrl,
+                    OptimizedProductImage(
+                        imageUrl = badgeUrl,
                         contentDescription = null,
                         modifier = Modifier
                             .align(Alignment.TopStart)
@@ -152,21 +166,6 @@ fun ProductCardV2(
                     .weight(1f)
                     .padding(horizontal = 4.dp, vertical = 4.dp)
             ) {
-                val titleWords = product.title.split(" ")
-                val annotatedTitle = buildAnnotatedString {
-                    if (titleWords.isNotEmpty()) {
-                        withStyle(style = SpanStyle(fontWeight = FontWeight.ExtraBold)) {
-                            append(titleWords[0])
-                        }
-                        if (titleWords.size > 1) {
-                            append(" ")
-                            withStyle(style = SpanStyle(fontWeight = FontWeight.Normal)) {
-                                append(titleWords.drop(1).joinToString(" "))
-                            }
-                        }
-                    }
-                }
-                
                 Text(
                     text = annotatedTitle,
                     fontSize = 14.sp,
@@ -176,7 +175,7 @@ fun ProductCardV2(
                     overflow = TextOverflow.Ellipsis
                 )
 
-                // ⭐ Yıldızlı Değerlendirme (Açıklamanın sol altında)
+                // ⭐ Yıldızlı Değerlendirme
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.padding(top = 2.dp)
@@ -208,12 +207,12 @@ fun ProductCardV2(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // "Sepete Özel" Rozeti (Şartlı Görünüm: Sadece indirim > 13.0 ise)
-                if (product.discountPercentage > 13.0) {
+                // "Sepete Özel" Rozeti
+                if (isDiscounted) {
                     Surface(
                         color = Color(0xFFF5F5F5),
                         shape = RoundedCornerShape(4.dp),
-                        modifier = Modifier.height(44.dp) // Fiyat kutusuyla aynı yükseklik
+                        modifier = Modifier.height(44.dp) 
                     ) {
                         Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = 6.dp)) {
                             Text(
@@ -226,7 +225,7 @@ fun ProductCardV2(
                             )
                         }
                     }
-                    Spacer(modifier = Modifier.width(1.dp)) // İstediğin 1dp boşluk
+                    Spacer(modifier = Modifier.width(1.dp)) 
                 }
 
                 // Fiyat Kutusu
@@ -257,13 +256,11 @@ fun ProductCardV2(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                // V1'deki İndirim Yapısının Aynısı
-                                if (product.discountPercentage > 13.0) {
+                                if (isDiscounted) {
                                     Column(verticalArrangement = Arrangement.Center) {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
-                                            val originalPrice = product.price / (1 - product.discountPercentage / 100.0)
                                             Text(
-                                                text = PriceUtils.formatUsdAsTry(originalPrice),
+                                                text = originalPriceFormatted,
                                                 fontSize = 10.sp,
                                                 color = Color.Gray,
                                                 textDecoration = TextDecoration.LineThrough,
@@ -279,7 +276,7 @@ fun ProductCardV2(
                                                     .padding(horizontal = 2.dp, vertical = 0.dp)
                                             ) {
                                                 Text(
-                                                    text = "%${product.discountPercentage.toInt()}",
+                                                    text = "%$discountPercent",
                                                     color = Color.White,
                                                     fontSize = 9.sp,
                                                     lineHeight = 9.sp,
@@ -288,7 +285,7 @@ fun ProductCardV2(
                                             }
                                         }
                                         Text(
-                                            text = PriceUtils.formatUsdAsTry(product.price),
+                                            text = formattedPrice,
                                             fontSize = 13.sp, 
                                             fontWeight = FontWeight.ExtraBold,
                                             color = Color(0xFF228912),
@@ -298,21 +295,20 @@ fun ProductCardV2(
                                     }
                                 } else {
                                     Text(
-                                        text = PriceUtils.formatUsdAsTry(product.price),
+                                        text = formattedPrice,
                                         fontSize = 13.sp, 
                                         fontWeight = FontWeight.ExtraBold,
                                         color = Color.Black
                                     )
                                 }
 
-                                // Sepet Butonu (Arka plansız, siyah ikon)
                                 if (isAnimating) {
                                     CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color(0xFF228912), strokeWidth = 2.dp)
                                 } else {
                                     Icon(
                                         imageVector = Icons.Outlined.AddShoppingCart,
                                         contentDescription = null,
-                                        tint = Color.Black, // Siyah ikon
+                                        tint = Color.Black, 
                                         modifier = Modifier
                                             .size(20.dp)
                                             .clickable {

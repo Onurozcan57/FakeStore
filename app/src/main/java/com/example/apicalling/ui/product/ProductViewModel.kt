@@ -38,6 +38,8 @@ class ProductViewModel @Inject constructor(
      * Veri çekme işlemini UseCase üzerinden yönetiyoruz.
      */
     fun getProducts() {
+        if (_state.value.products.isNotEmpty()) return // Veri varsa tekrar çekme
+
         getProductsUseCase().onEach { result ->
             when (result) {
                 is Resource.Success -> {
@@ -52,11 +54,20 @@ class ProductViewModel @Inject constructor(
                             )
                         }
                     
+                    val fragrancesProducts = products.asSequence()
+                        .filter { it.category == "fragrances" }
+                        .take(10)
+                        .toList()
+                    val randomProducts = products.shuffled().take(20)
+                    val chunkedRandomProducts = randomProducts.chunked(2)
+
                     _state.update { 
                         it.copy(
                             isLoading = false, 
                             products = products, 
-                            randomProducts = products.shuffled().take(26),
+                            randomProducts = randomProducts,
+                            fragrancesProducts = fragrancesProducts,
+                            chunkedRandomProducts = chunkedRandomProducts,
                             categories = categories,
                             error = null
                         ) 
@@ -90,7 +101,7 @@ class ProductViewModel @Inject constructor(
             try {
                 val suggestions = productRepository.searchProducts(query)
                 _state.update { it.copy(searchSuggestions = suggestions, isSearching = true) }
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 // Silently fail
             }
         }
