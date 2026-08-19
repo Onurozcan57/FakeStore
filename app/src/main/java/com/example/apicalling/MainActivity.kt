@@ -85,7 +85,6 @@ class MainActivity : ComponentActivity() {
                 val cartViewModel: CartViewModel = hiltViewModel()
                 val favoriteViewModel: FavoriteViewModel = hiltViewModel()
                 
-                val cartItems by cartViewModel.cartItems.collectAsState()
                 val favoriteIds by favoriteRepository.favoriteIds.collectAsState()
 
                 LaunchedEffect(Unit) {
@@ -95,7 +94,7 @@ class MainActivity : ComponentActivity() {
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentDestination = navBackStackEntry?.destination
 
-                val bottomBarScreens = listOf(
+                val showBottomBar = currentDestination?.route in listOf(
                     Screen.Home.route,
                     Screen.Favorites.route,
                     Screen.Cart.route,
@@ -103,12 +102,8 @@ class MainActivity : ComponentActivity() {
                     Screen.CategoryDetail.route,
                     Screen.Search.route
                 )
-                val showBottomBar = currentDestination?.route in bottomBarScreens
 
-                // Terminoloji: Pure Transparent Layering
                 Box(modifier = Modifier.fillMaxSize()) {
-                    
-                    // 1. KATMAN: Uygulama İçeriği (Tam Ekran)
                     NavHost(
                         navController = navController,
                         startDestination = if (sessionRepository.isLoggedIn()) Screen.Home.route else Screen.Login.route,
@@ -163,13 +158,14 @@ class MainActivity : ComponentActivity() {
                             val discount by cartViewModel.discount.collectAsState()
                             val couponError by cartViewModel.couponError.collectAsState()
                             val suggestedProducts by cartViewModel.suggestedProducts.collectAsState()
+                            val isPriceDroppedFilterActive by cartViewModel.isPriceDroppedFilterActive.collectAsState()
                             
-                            LaunchedEffect(products, cartItems) {
+                            LaunchedEffect(products) {
                                 cartViewModel.updateSuggestedProducts(products)
                             }
 
                             CartScreen(
-                                cartItems = cartItems,
+                                cartItems = cartViewModel.cartItems.collectAsState().value,
                                 favoriteProducts = favoriteViewModel.state.collectAsState().value.allFavoriteProducts,
                                 suggestedProducts = suggestedProducts,
                                 favoriteIds = favoriteIds,
@@ -184,6 +180,8 @@ class MainActivity : ComponentActivity() {
                                 onApplyCoupon = { cartViewModel.applyCoupon(it) },
                                 onRemoveCoupon = { cartViewModel.removeCoupon() },
                                 onClearError = { cartViewModel.clearCouponError() },
+                                isPriceDroppedFilterActive = isPriceDroppedFilterActive,
+                                onTogglePriceDroppedFilter = { cartViewModel.togglePriceDroppedFilter() },
                                 onCheckoutClick = { navController.navigate(Screen.Checkout.route) }
                             )
                         }
@@ -208,7 +206,7 @@ class MainActivity : ComponentActivity() {
                             val detailState by detailViewModel.state.collectAsState()
                             ProductDetailScreen(
                                 viewModel = detailViewModel,
-                                cartItemCount = cartItems.size,
+                                cartItemCount = cartViewModel.cartItems.collectAsState().value.size,
                                 isFavorite = detailState.product?.let { favoriteIds.contains(it.id) } ?: false,
                                 onBackClick = { navController.popBackStack() },
                                 onCartClick = { navController.navigate(Screen.Cart.route) },
@@ -259,7 +257,7 @@ class MainActivity : ComponentActivity() {
                             val appliedCoupon by cartViewModel.appliedCoupon.collectAsState()
                             CheckoutScreen(
                                 viewModel = hiltViewModel(),
-                                cartItems = cartItems,
+                                cartItems = cartViewModel.cartItems.collectAsState().value,
                                 discount = discount,
                                 appliedCoupon = appliedCoupon,
                                 onBackClick = { navController.popBackStack() }
@@ -267,15 +265,10 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
-                    // 2. KATMAN: Yüzer Bottom Bar
                     if (showBottomBar) {
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.BottomCenter)
-                                .fillMaxWidth()
-                                .background(Color.Transparent)
-                        ) {
-                            AppBottomBar(navController, currentDestination, cartItems.size)
+                        Box(modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()) {
+                            val cartItemsByState by cartViewModel.cartItems.collectAsState()
+                            AppBottomBar(navController, currentDestination, cartItemsByState.size)
                         }
                     }
                 }
@@ -286,12 +279,14 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun AppBottomBar(navController: androidx.navigation.NavHostController, currentDestination: androidx.navigation.NavDestination?, cartSize: Int) {
-    val items = listOf(
-        BottomNavItem.Home,
-        BottomNavItem.Favorites,
-        BottomNavItem.Cart,
-        BottomNavItem.Profile
-    )
+    val items = remember {
+        listOf(
+            BottomNavItem.Home,
+            BottomNavItem.Favorites,
+            BottomNavItem.Cart,
+            BottomNavItem.Profile
+        )
+    }
     
     Surface(
         modifier = Modifier
@@ -335,7 +330,7 @@ fun AppBottomBar(navController: androidx.navigation.NavHostController, currentDe
                     },
                     label = { Text(text = item.title) },
                     colors = NavigationBarItemDefaults.colors(
-                        indicatorColor = Color.Transparent,
+                        indicatorColor = Color.White,
                         selectedIconColor = MaterialTheme.colorScheme.primary,
                         selectedTextColor = MaterialTheme.colorScheme.primary,
                         unselectedIconColor = Color.Gray,

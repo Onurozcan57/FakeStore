@@ -51,6 +51,8 @@ fun CartScreen(
     onApplyCoupon: (String) -> Unit,
     onRemoveCoupon: () -> Unit,
     onClearError: () -> Unit,
+    isPriceDroppedFilterActive: Boolean, // Yeni
+    onTogglePriceDroppedFilter: () -> Unit, // Yeni
     onCheckoutClick: () -> Unit // Yeni: Ödemeye geçiş aksiyonu
 ) {
     var isDetailExpanded by remember { mutableStateOf(false) }
@@ -123,6 +125,8 @@ fun CartScreen(
                 SuggestionsSection(
                     suggestedProducts = suggestedProducts,
                     favoriteIds = favoriteIds,
+                    isFilterActive = isPriceDroppedFilterActive,
+                    onFilterClick = onTogglePriceDroppedFilter,
                     onProductClick = onProductClick,
                     onFavoriteClick = onFavoriteClick,
                     onAddToCart = onAddToCart
@@ -373,16 +377,70 @@ fun FavoritesSection(favoriteProducts: List<ProductDto>, favoriteIds: Set<Int>, 
 }
 
 @Composable
-fun SuggestionsSection(suggestedProducts: List<ProductDto>, favoriteIds: Set<Int>, onProductClick: (Int) -> Unit, onFavoriteClick: (Int) -> Unit, onAddToCart: (ProductDto) -> Unit) {
+fun SuggestionsSection(
+    suggestedProducts: List<ProductDto>, 
+    favoriteIds: Set<Int>, 
+    isFilterActive: Boolean,
+    onFilterClick: () -> Unit,
+    onProductClick: (Int) -> Unit,
+    onFavoriteClick: (Int) -> Unit, 
+    onAddToCart: (ProductDto) -> Unit
+) {
     Column(modifier = Modifier.padding(vertical = 24.dp)) {
-        Text("Bunlar da ilgini çekebilir", fontWeight = FontWeight.Bold, fontSize = 16.sp, modifier = Modifier.padding(horizontal = 16.dp))
-        Spacer(modifier = Modifier.height(16.dp))
-        suggestedProducts.chunked(2).forEach { rowItems ->
-            Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                for (product in rowItems) {
-                    ProductCardV2(product = product, onAddToCart = { onAddToCart(product) }, isFavorite = favoriteIds.contains(product.id), onFavoriteClick = { onFavoriteClick(product.id) }, onProductClick = onProductClick, modifier = Modifier.weight(1f))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text("Bunlar da ilgini çekebilir", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+
+            // Fiyatı Düşenler Filtre Butonu
+            Surface(
+                onClick = onFilterClick,
+                color = if (isFilterActive) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f) else Color.Transparent,
+                shape = RoundedCornerShape(20.dp),
+                border = BorderStroke(
+                    1.dp,
+                    if (isFilterActive) MaterialTheme.colorScheme.primary else Color.LightGray.copy(alpha = 0.5f)
+                )
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.TrendingDown,
+                        contentDescription = null,
+                        tint = if (isFilterActive) MaterialTheme.colorScheme.primary else Color.Gray,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Fiyatı Düşenler",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isFilterActive) MaterialTheme.colorScheme.primary else Color.Gray
+                    )
                 }
-                if (rowItems.size == 1) Spacer(modifier = Modifier.weight(1f))
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        if (suggestedProducts.isEmpty()) {
+            Box(modifier = Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
+                Text("Ürün bulunamadı.", color = Color.Gray, fontSize = 13.sp)
+            }
+        } else {
+            suggestedProducts.chunked(2).forEach { rowItems ->
+                Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    for (product in rowItems) {
+                        ProductCardV2(product = product, onAddToCart = { onAddToCart(product) }, isFavorite = favoriteIds.contains(product.id), onFavoriteClick = { onFavoriteClick(product.id) }, onProductClick = onProductClick, modifier = Modifier.weight(1f))
+                    }
+                    if (rowItems.size == 1) Spacer(modifier = Modifier.weight(1f))
+                }
             }
         }
     }

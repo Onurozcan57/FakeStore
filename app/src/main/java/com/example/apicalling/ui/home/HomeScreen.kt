@@ -26,6 +26,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
@@ -68,6 +69,7 @@ fun HomeScreen(
     onSuggestionClick: (String) -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
+    val focusManager = LocalFocusManager.current
 
     val campaignImages = listOf(
         R.drawable.kampanya_2,
@@ -76,104 +78,28 @@ fun HomeScreen(
         R.drawable.kampanya_4
     )
 
-    // 🏗️ ANA KONTEYNER (Terminoloji: Static Layout Container)
-    // Bu dış Column kaydırılabilir DEĞİLDİR. Bu sayede içindeki Header sabit kalır.
-    Column(
+    // 🏗️ ANA KONTEYNER (Overlay-First Architecture)
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-    ) {
-        // 🏛️ SABİT ÜST BAR (Terminoloji: Sticky Header)
-        // Scroll dışı olduğu için kullanıcı ne kadar kaydırırsa kaydırsın burası tepede çakılı kalır.
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(
-                    color = MaterialTheme.colorScheme.primary,
-                    shape = RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp)
-                )
-                .statusBarsPadding()
-                .padding(bottom = 12.dp)
-        ) {
-            Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-                Box(modifier = Modifier.fillMaxWidth()) {
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(50.dp),
-                        shape = RoundedCornerShape(25.dp),
-                        color = Color.White,
-                        shadowElevation = 8.dp
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(horizontal = 16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(imageVector = Icons.Default.Search, contentDescription = "Ara", tint = Color.Gray, modifier = Modifier.size(20.dp))
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-                                BasicTextField(
-                                    value = searchQuery,
-                                    onValueChange = {
-                                        searchQuery = it
-                                        onSearchQueryChange(it)
-                                    },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    singleLine = true,
-                                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                                    keyboardActions = KeyboardActions(onSearch = { if (searchQuery.isNotBlank()) onSearch(searchQuery) }),
-                                    decorationBox = { innerTextField ->
-                                        if (searchQuery.isEmpty()) Text(text = "Ürün, kategori veya marka ara...", color = Color.Gray, fontSize = 14.sp)
-                                        innerTextField()
-                                    }
-                                )
-                            }
-                            Icon(imageVector = Icons.Default.CameraAlt, contentDescription = "Görsel Arama", tint = Color.Gray, modifier = Modifier.size(20.dp))
-                        }
-                    }
-                    if (productState.isSearching && productState.searchSuggestions.isNotEmpty()) {
-                        Surface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 55.dp)
-                                .wrapContentHeight()
-                                .border(0.5.dp, Color.LightGray.copy(alpha = 0.3f), RoundedCornerShape(16.dp)),
-                            shape = RoundedCornerShape(16.dp),
-                        ) {
-                            Column(modifier = Modifier.padding(vertical = 8.dp)) {
-                                productState.searchSuggestions.take(6).forEach { suggestion ->
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clickable { 
-                                                onSuggestionClick(suggestion.title)
-                                                searchQuery = suggestion.title
-                                            }
-                                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Icon(Icons.Default.Search, contentDescription = null, tint = Color.LightGray, modifier = Modifier.size(18.dp))
-                                        Spacer(modifier = Modifier.width(12.dp))
-                                        Text(text = suggestion.title, fontSize = 14.sp, color = Color.DarkGray)
-                                    }
-                                }
-                            }
-                        }
-                    }
+            .clickable(
+                enabled = productState.isSearching,
+                onClick = { 
+                    focusManager.clearFocus() // Klavyeyi ve odaklanmayı kapat
+                    onSearchQueryChange("") // Arama modundan çık (ViewModel üzerinden isSearching=false)
                 }
-            }
-        }
-
-        // 📜 KAYDIRILABİLİR İÇERİK (Terminoloji: Scrollable Content Body)
-        // Burası bağımsız bir kaydırma alanıdır. 
-        // Modifier.weight(1f) ile ekranın kalan tüm yerini kaplamasını sağladık.
+            )
+    ) {
+        // 📜 1. KATMAN: KAYDIRILABİLİR İÇERİK (Arka planda kayar)
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
         ) {
+            // Header yüksekliği kadar boşluk bırakıyoruz ki içerik Header'ın altında kalmasın
+            Spacer(modifier = Modifier.height(100.dp))
+
             CampaignSlider(images = campaignImages)
 
             if (productState.categories.isNotEmpty()) {
@@ -181,11 +107,11 @@ fun HomeScreen(
             }
 
             if (productState.products.isNotEmpty()) {
-                val discountedProducts = productState.products.filter { it.category == "beauty" }.take(10)
-                if (discountedProducts.isNotEmpty()) {
+                val fragrancesProducts = productState.products.filter { it.category == "fragrances" }.take(10)
+                if (fragrancesProducts.isNotEmpty()) {
                     HorizontalProductSection(
-                        title = "Kampanyadaki Ürünler",
-                        products = discountedProducts,
+                        title = "Son Gezdiğin Ürünler",
+                        products = fragrancesProducts,
                         favoriteIds = favoriteIds,
                         onAddToCart = onAddToCart,
                         onProductClick = onProductClick,
@@ -216,10 +142,93 @@ fun HomeScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(110.dp))
+        }
+
+        // 🏛️ 2. KATMAN: SABİT MAVİ ÜST BAR (Terminoloji: Solid Sticky Header)
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    color = MaterialTheme.colorScheme.primary,
+                    shape = RoundedCornerShape( bottomStart = 20.dp, bottomEnd = 20.dp)
+                )
+                .statusBarsPadding()
+                .padding(bottom = 12.dp)
+        ) {
+            Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                // Arama Çubuğu
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(40.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color.White,
+                    shadowElevation = 8.dp
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(imageVector = Icons.Default.Search, contentDescription = "Ara", tint = Color.DarkGray, modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                            BasicTextField(
+                                value = searchQuery,
+                                onValueChange = {
+                                    searchQuery = it
+                                    onSearchQueryChange(it)
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                                keyboardActions = KeyboardActions(onSearch = { if (searchQuery.isNotBlank()) onSearch(searchQuery) }),
+                                decorationBox = { innerTextField ->
+                                    if (searchQuery.isEmpty()) Text(text = "Ürün, kategori veya marka ara", color = Color.DarkGray, fontSize = 13.sp)
+                                    innerTextField()
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // 🏛️ 3. KATMAN: ÖNERİ LİSTESİ (Terminoloji: Solid Floating Suggestions)
+        if (productState.isSearching && productState.searchSuggestions.isNotEmpty()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 98.dp) // AppBar'ın hemen altından başlasın
+                    .background(Color.White) // Solid beyaz arka plan istedin, yaptık kral
+                    .border(0.5.dp, Color.LightGray.copy(alpha = 0.5f))
+                    .wrapContentHeight()
+            ) {
+                productState.searchSuggestions.take(6).forEach { suggestion ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                onSuggestionClick(suggestion.title)
+                                searchQuery = suggestion.title
+                                focusManager.clearFocus() // Seçim yapınca da odağı kapat
+                            }
+                            .padding(horizontal = 24.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.Search, contentDescription = null, tint = Color.LightGray, modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Text(text = suggestion.title, fontSize = 14.sp, color = Color.DarkGray)
+                    }
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = Color.LightGray.copy(alpha = 0.3f))
+                }
+            }
         }
     }
 }
+
 @Composable
 fun CampaignSlider(images: List<Any>) {
     val pagerState = rememberPagerState(pageCount = { images.size })
@@ -230,7 +239,6 @@ fun CampaignSlider(images: List<Any>) {
         scope.launch { pagerState.animateScrollToPage(page = nextPage, animationSpec = tween(durationMillis = 1000)) }
     }
     Column(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-        // Box kullanarak içerikleri üst üste bindirdik (Terminoloji: Layout Layering)
         Box(modifier = Modifier.fillMaxWidth().height(110.dp)) {
             HorizontalPager(
                 state = pagerState, 
@@ -252,21 +260,26 @@ fun CampaignSlider(images: List<Any>) {
                 }
             }
 
-            // Sol Alt Sayfa İndikatörü (Terminoloji: Bold Horizontal Badge)
-            Surface(
+
+            Box(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
-                    .padding(start = 20.dp, bottom = 2.dp), // Kartın köşesine uyumlu konum
-                color = Color.Black.copy(alpha = 0.4f),
-                shape = RoundedCornerShape(30.dp) // Yatay uzunluk için kapsül form (Terminoloji: Capsule Shape)
+                    .padding(start = 20.dp, bottom = 4.dp)
+                    .background(
+                        color = Color.Black.copy(alpha = 0.4f),
+                        shape = RoundedCornerShape(30.dp)
+                    )
+                    .padding(horizontal = 6.dp, vertical = 0.dp)
             ) {
                 Text(
-                    text = "${pagerState.currentPage + 1}/${images.size}", // Yatayda daha uzun görünmesi için çift boşluk
+                    text = "${pagerState.currentPage + 1}/${images.size}",
                     color = Color.White,
-                    fontSize = 10.sp, // Font büyük yapıldı
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 0.dp) // Yatay uzun, üst boşluk sıfır
+                   // fontWeight = FontWeight.Bold,
+                    fontSize = 11.sp,
+                    lineHeight = 11.sp
                 )
             }
+
         }
     }
 }
@@ -306,7 +319,7 @@ fun HorizontalProductSection(
     onFavoriteClick: (Int) -> Unit
 ) {
     Column(modifier = Modifier.padding(top = 0.dp)) {
-        Text(text = title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+        Text(text = title, style = MaterialTheme.typography.titleLarge,fontSize= 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
         LazyRow(
             modifier = Modifier.wrapContentHeight(), 
             contentPadding = PaddingValues(horizontal = 12.dp), 
@@ -319,7 +332,7 @@ fun HorizontalProductSection(
                     onFavoriteClick = { onFavoriteClick(product.id) },
                     onAddToCart = { onAddToCart(product) }, 
                     onProductClick = onProductClick,
-                    modifier = Modifier.width(125.dp) // Genişlik buradan kontrol ediliyor
+                    modifier = Modifier.width(125.dp)
                 )
             }
         }
@@ -347,7 +360,7 @@ fun GridProductSection(
                         onFavoriteClick = { onFavoriteClick(product.id) },
                         onAddToCart = { onAddToCart(product) }, 
                         onProductClick = onProductClick, 
-                        modifier = Modifier.weight(1f).height(240.dp)
+                        modifier = Modifier.weight(1f) // height(240.dp) kaldırıldı, V2 kendi boyunu yönetecek
                     )
                 }
                 if (rowItems.size == 1) Spacer(modifier = Modifier.weight(1f))
@@ -376,12 +389,11 @@ fun PromoCard(promo: PromoItem) {
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp), 
         colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
-        // Gereksiz Box ve Background kaldırıldı, resim kartı tam kaplayacak şekilde ayarlandı
         AsyncImage(
             model = promo.imageUrl, 
             contentDescription = null, 
             modifier = Modifier.fillMaxSize(), 
-            contentScale = ContentScale.Crop // Resmin kartı tam doldurması için
+            contentScale = ContentScale.Crop
         )
     }
 }
@@ -403,4 +415,3 @@ fun HomeScreenPreview() {
         )
     }
 }
-

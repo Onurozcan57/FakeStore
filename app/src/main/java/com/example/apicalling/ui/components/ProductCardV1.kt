@@ -16,7 +16,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -69,6 +71,24 @@ fun ProductCardV1(
                     modifier = Modifier.fillMaxSize() 
                 )
 
+                // 🌟 Kampanya Rozeti (Sol Üst - Dinamik)
+                if (product.discountPercentage >= 13.0) {
+                    val badgeUrl = if (product.discountPercentage >= 15.0)"https://images.hepsiburada.net/banners/s/1/104-105/app134056176801991801.png"
+                        // 3 Yıldız (Yüksek İndirim)
+                    else
+                    "https://images.hepsiburada.net/banners/s/1/104-105/app3134056183170135731.png"  // Tek Yıldız (Orta İndirim)
+
+                    AsyncImage(
+                        model = badgeUrl,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(4.dp)
+                            .size(32.dp)
+                            .clip(CircleShape)
+                    )
+                }
+
                 // Favori Butonu
                 Surface(
                     modifier = Modifier.align(Alignment.TopEnd).padding(4.dp).size(28.dp),
@@ -102,22 +122,66 @@ fun ProductCardV1(
                     modifier = Modifier.padding(horizontal = 4.dp).padding(top = 2.dp, bottom = 6.dp)
                 )
 
-                // 3. Fiyat Alanı
+                // 3. Fiyat Alanı (Dinamik İndirimli Yapı)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(38.dp)
-                        .clip(RoundedCornerShape(6.dp)) 
+                        .height(42.dp) // İndirimli fiyat için yükseklik artırıldı
+                        .clip(RoundedCornerShape(6.dp))
                         .background(Color(0xFFF3F3F3))
-                        .padding(horizontal = 8.dp),
+                        .padding(horizontal = 4.dp),
                     contentAlignment = Alignment.CenterStart
                 ) {
-                    Text(
-                        text = PriceUtils.formatUsdAsTry(product.price),
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.Black
-                    )
+                    if (product.discountPercentage > 13.0) { // %5 üzeri indirimleri gösteriyoruz
+                        Column(verticalArrangement = Arrangement.Center) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                // Eski Fiyat (Gri ve Üstü Çizili)
+                                val originalPrice = product.price / (1 - product.discountPercentage / 100.0)
+                                Text(
+                                    text = PriceUtils.formatUsdAsTry(originalPrice),
+                                    fontSize = 11.sp,
+                                    color = Color.Gray,
+                                    textDecoration = TextDecoration.LineThrough,
+                                    maxLines = 1
+                                )
+                                Spacer(modifier = Modifier.width(2.dp))
+                                // İndirim Oranı (Yeşil Arka Plan, Beyaz Yazı)
+                                Box(
+                                    modifier = Modifier
+                                        .background(
+                                            Color(0xFF228912),
+                                            RoundedCornerShape(3.dp)
+                                        )
+                                        .padding(horizontal = 3.dp)
+                                ) {
+                                    Text(
+                                        text = "%${product.discountPercentage.toInt()}",
+                                        color = Color.White,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        lineHeight = 12.sp
+                                    )
+                                }
+                            }
+                            // İndirimli Yeni Fiyat (Yeşil ve Büyük)
+                            Text(
+                                text = PriceUtils.formatUsdAsTry(product.price),
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color(0xFF228912),
+                                modifier = Modifier.offset(y = (-8).dp ,x= (-2).dp),
+                                maxLines = 1
+                            )
+                        }
+                    } else {
+                        // İndirim Yoksa Normal Görünüm
+                        Text(
+                            text = PriceUtils.formatUsdAsTry(product.price),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color.Black
+                        )
+                    }
                 }
             }
         }

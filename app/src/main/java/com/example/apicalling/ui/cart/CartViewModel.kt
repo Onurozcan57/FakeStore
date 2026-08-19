@@ -11,8 +11,11 @@ import com.example.apicalling.domain.usecase.MarkCouponAsUsedUseCase
 import com.example.apicalling.util.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import com.example.apicalling.util.PriceUtils.USD_TO_TRY_RATE
@@ -30,7 +33,20 @@ class CartViewModel @Inject constructor(
     val cartItems: StateFlow<List<ProductDto>> = _cartItems.asStateFlow()
 
     private val _suggestedProducts = MutableStateFlow<List<ProductDto>>(emptyList())
-    val suggestedProducts: StateFlow<List<ProductDto>> = _suggestedProducts.asStateFlow()
+
+    private val _isPriceDroppedFilterActive = MutableStateFlow(false)
+    val isPriceDroppedFilterActive: StateFlow<Boolean> = _isPriceDroppedFilterActive.asStateFlow()
+
+    val suggestedProducts: StateFlow<List<ProductDto>> = combine(
+        _suggestedProducts,
+        _isPriceDroppedFilterActive
+    ) { products, filterActive ->
+        if (filterActive) {
+            products.filter { it.discountPercentage > 13.0 } // İndirimli olanlar
+        } else {
+            products
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _appliedCoupon = MutableStateFlow<Coupon?>(null)
     val appliedCoupon: StateFlow<Coupon?> = _appliedCoupon.asStateFlow()
@@ -43,6 +59,10 @@ class CartViewModel @Inject constructor(
 
     fun updateSuggestedProducts(allProducts: List<ProductDto>) {
         _suggestedProducts.value = getSuggestedProductsUseCase(_cartItems.value, allProducts)
+    }
+
+    fun togglePriceDroppedFilter() {
+        _isPriceDroppedFilterActive.update { !it }
     }
 
     fun addToCart(product: ProductDto) {
