@@ -73,7 +73,7 @@ fun ProductCardV1(
                 contentAlignment = Alignment.Center
             ) {
                 OptimizedProductImage(
-                    imageUrl = product.thumbnail,
+                    imageModel = product.thumbnail,
                     contentDescription = product.title,
                     contentScale = ContentScale.Fit,
                     modifier = Modifier.fillMaxSize() 
@@ -87,7 +87,7 @@ fun ProductCardV1(
                     }
 
                     OptimizedProductImage(
-                        imageUrl = badgeUrl,
+                        imageModel = badgeUrl,
                         contentDescription = null,
                         modifier = Modifier
                             .align(Alignment.TopStart)

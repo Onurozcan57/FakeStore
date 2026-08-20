@@ -22,6 +22,7 @@ data class FavoriteState(
     val favoriteIds: Set<Int> = emptySet(),
     val searchQuery: String = "",
     val sortOption: SortOption = SortOption.RECOMMENDED,
+    val isPriceDroppedFilterActive: Boolean = false,
     val error: String? = null
 )
 
@@ -71,6 +72,11 @@ class FavoriteViewModel @Inject constructor(
         applyFiltersAndSort()
     }
 
+    fun togglePriceDroppedFilter() {
+        _state.update { it.copy(isPriceDroppedFilterActive = !it.isPriceDroppedFilterActive) }
+        applyFiltersAndSort()
+    }
+
     fun toggleFavorite(productId: Int) {
         favoriteRepository.toggleFavorite(productId)
     }
@@ -81,6 +87,10 @@ class FavoriteViewModel @Inject constructor(
 
         if (current.searchQuery.isNotBlank()) {
             list = list.filter { it.title.contains(current.searchQuery, ignoreCase = true) }
+        }
+
+        if (current.isPriceDroppedFilterActive) {
+            list = list.filter { it.discountPercentage > 13.0 }
         }
 
         val sortedList = when (current.sortOption) {

@@ -22,17 +22,23 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.VisualTransformation
 import coil.compose.AsyncImage
 import com.example.apicalling.data.model.AddressDto
 import com.example.apicalling.data.model.ProductDto
 import com.example.apicalling.domain.model.Coupon
 import com.example.apicalling.ui.cart.CartBottomBar
+import com.example.apicalling.ui.cart.CartItem
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CheckoutScreen(
     viewModel: CheckoutViewModel,
-    cartItems: List<ProductDto>,
+    cartItems: List<CartItem>,
     discount: Double,
     appliedCoupon: Coupon?,
     onBackClick: () -> Unit
@@ -56,7 +62,6 @@ fun CheckoutScreen(
 
     Box(modifier = Modifier.fillMaxSize().background(Color(0xFFF5F5F5))) {
         Scaffold(
-            snackbarHost = { SnackbarHost(hostState = snackbarHostState, modifier = Modifier.padding(bottom = 100.dp)) },
             containerColor = Color.Transparent,
             topBar = {
                 CenterAlignedTopAppBar(
@@ -95,8 +100,8 @@ fun CheckoutScreen(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
                         singleLine = true,
-                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                            keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Number
                         )
                     )
                     
@@ -188,10 +193,21 @@ fun CheckoutScreen(
             }
         }
 
+        // Terminoloji: Top-Level Snackbar Host
+        // Z-Index hiyerarşisinde en üstte olması için Box'ın son elemanı olarak ekledik.
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(bottom = 170.dp),
+            contentAlignment = Alignment.BottomCenter
+        ) {
+            SnackbarHost(hostState = snackbarHostState)
+        }
+
         // 5. Floating Checkout Bar
         if (cartItems.isNotEmpty() && state.paymentStatus != PaymentStatus.SUCCESS && 
             state.paymentStatus != PaymentStatus.THREE_DS_REQUIRED && state.paymentStatus != PaymentStatus.VERIFYING_OTP) {
-            val isEnabled = viewModel.isFormValid(cartItems) && state.paymentStatus != PaymentStatus.LOADING
+            val isEnabled = viewModel.isFormValid(cartItems.map { it.product }) && state.paymentStatus != PaymentStatus.LOADING
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
@@ -200,7 +216,7 @@ fun CheckoutScreen(
                 contentAlignment = Alignment.BottomCenter
             ) {
                 CartBottomBar(
-                    totalPrice = cartItems.sumOf { it.price },
+                    totalPrice = cartItems.sumOf { it.product.price * it.quantity },
                     discount = discount,
                     isExpanded = isDetailExpanded,
                     onExpandClick = { isDetailExpanded = !isDetailExpanded },
@@ -351,9 +367,30 @@ fun AddressForm(
             shape = RoundedCornerShape(12.dp)
         )
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(value = address.building, onValueChange = { onAddressChange(address.copy(building = it)) }, label = { Text("Bina") }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp))
-            OutlinedTextField(value = address.floor, onValueChange = { onAddressChange(address.copy(floor = it)) }, label = { Text("Kat") }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp))
-            OutlinedTextField(value = address.apartmentNo, onValueChange = { onAddressChange(address.copy(apartmentNo = it)) }, label = { Text("Daire") }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp))
+            OutlinedTextField(
+                value = address.building, 
+                onValueChange = { onAddressChange(address.copy(building = it)) }, 
+                label = { Text("Bina") }, 
+                modifier = Modifier.weight(1f), 
+                shape = RoundedCornerShape(12.dp),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+            )
+            OutlinedTextField(
+                value = address.floor, 
+                onValueChange = { onAddressChange(address.copy(floor = it)) }, 
+                label = { Text("Kat") }, 
+                modifier = Modifier.weight(1f), 
+                shape = RoundedCornerShape(12.dp),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+            )
+            OutlinedTextField(
+                value = address.apartmentNo, 
+                onValueChange = { onAddressChange(address.copy(apartmentNo = it)) }, 
+                label = { Text("Daire") }, 
+                modifier = Modifier.weight(1f), 
+                shape = RoundedCornerShape(12.dp),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+            )
         }
         
         Spacer(modifier = Modifier.height(8.dp))
@@ -372,22 +409,121 @@ fun AddressForm(
 }
 
 @Composable
-fun PaymentForm(cardNumber: String, cvv: String, month: String, year: String, onCardInfoChange: (String, String, String, String) -> Unit) {
+fun PaymentForm(
+    cardNumber: String, 
+    cvv: String, 
+    month: String, 
+    year: String, 
+    onCardInfoChange: (String, String, String, String) -> Unit
+) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        OutlinedTextField(value = cardNumber, onValueChange = { onCardInfoChange(it, cvv, month, year) }, label = { Text("Kart Numarası") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp))
+        // Terminoloji: Masked Input / Visual Transformation
+        // Kart numarası: 16 hane sınırı, sayısal klavye ve 4 hanede bir boşluk.
+        OutlinedTextField(
+            value = cardNumber,
+            onValueChange = { 
+                val digits = it.filter { char -> char.isDigit() }
+                if (digits.length <= 16) {
+                    onCardInfoChange(digits, cvv, month, year)
+                }
+            },
+            label = { Text("Kart Numarası") },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            visualTransformation = CardNumberVisualTransformation()
+        )
+        
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(value = month, onValueChange = { onCardInfoChange(cardNumber, cvv, it, year) }, label = { Text("Ay") }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp))
-            OutlinedTextField(value = year, onValueChange = { onCardInfoChange(cardNumber, cvv, month, it) }, label = { Text("Yıl") }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp))
-            OutlinedTextField(value = cvv, onValueChange = { onCardInfoChange(cardNumber, it, month, year) }, label = { Text("CVV") }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp))
+            // Ay: 2 hane sınırı ve sayısal klavye
+            OutlinedTextField(
+                value = month,
+                onValueChange = { 
+                    val digits = it.filter { char -> char.isDigit() }
+                    if (digits.length <= 2) {
+                        onCardInfoChange(cardNumber, cvv, digits, year)
+                    }
+                },
+                label = { Text("Ay") },
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(12.dp),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+            )
+            
+            // Yıl: 2 hane sınırı ve sayısal klavye
+            OutlinedTextField(
+                value = year,
+                onValueChange = { 
+                    val digits = it.filter { char -> char.isDigit() }
+                    if (digits.length <= 2) {
+                        onCardInfoChange(cardNumber, cvv, month, digits)
+                    }
+                },
+                label = { Text("Yıl") },
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(12.dp),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+            )
+            
+            // CVV: 3 hane sınırı ve sayısal klavye
+            OutlinedTextField(
+                value = cvv,
+                onValueChange = { 
+                    val digits = it.filter { char -> char.isDigit() }
+                    if (digits.length <= 3) {
+                        onCardInfoChange(cardNumber, digits, month, year)
+                    }
+                },
+                label = { Text("CVV") },
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(12.dp),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+            )
         }
     }
 }
 
+/**
+ * Terminoloji: Custom Visual Transformation
+ * Kart numarasını 4000 1234 5678 9012 formatında göstermek için kullanılır.
+ */
+class CardNumberVisualTransformation : VisualTransformation {
+    override fun filter(text: AnnotatedString): androidx.compose.ui.text.input.TransformedText {
+        val trimmed = if (text.text.length >= 16) text.text.substring(0..15) else text.text
+        var out = ""
+        for (i in trimmed.indices) {
+            out += trimmed[i]
+            if (i % 4 == 3 && i != 15) out += " "
+        }
+
+        val creditCardOffsetMapping = object : OffsetMapping {
+            override fun originalToTransformed(offset: Int): Int {
+                if (offset <= 3) return offset
+                if (offset <= 7) return offset + 1
+                if (offset <= 11) return offset + 2
+                if (offset <= 16) return offset + 3
+                return 19
+            }
+
+            override fun transformedToOriginal(offset: Int): Int {
+                if (offset <= 4) return offset
+                if (offset <= 9) return offset - 1
+                if (offset <= 14) return offset - 2
+                if (offset <= 19) return offset - 3
+                return 16
+            }
+        }
+
+        return androidx.compose.ui.text.input.TransformedText(AnnotatedString(out), creditCardOffsetMapping)
+    }
+}
+
 @Composable
-fun DeliverySummary(cartItems: List<ProductDto>) {
-    val subtotal = cartItems.sumOf { it.price }
+fun DeliverySummary(cartItems: List<CartItem>) {
+    val subtotal = cartItems.sumOf { it.product.price * it.quantity }
     val isFreeShipping = subtotal >= 50.0
-    cartItems.take(1).forEach { product ->
+    cartItems.take(1).forEach { item ->
+        val product = item.product
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(modifier = Modifier.size(60.dp).clip(RoundedCornerShape(8.dp)).background(Color(0xFFF5F5F5)), contentAlignment = Alignment.Center) {
                 AsyncImage(model = product.thumbnail, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)

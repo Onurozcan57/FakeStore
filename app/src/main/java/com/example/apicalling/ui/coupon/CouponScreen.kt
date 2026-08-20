@@ -23,6 +23,8 @@ import androidx.compose.ui.unit.sp
 import com.example.apicalling.domain.model.Coupon
 import com.example.apicalling.domain.model.DiscountType
 
+import java.util.Locale
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CouponScreen(
@@ -60,9 +62,18 @@ fun CouponScreen(
                     modifier = Modifier.align(Alignment.Center),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Icon(Icons.Default.ConfirmationNumber, contentDescription = null, size(64.dp), tint = Color.LightGray)
+                    Icon(
+                        imageVector = Icons.Default.ConfirmationNumber, 
+                        contentDescription = null, 
+                        modifier = Modifier.size(64.dp), 
+                        tint = Color.LightGray
+                    )
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text("Henüz kuponunuz bulunmuyor.", color = Color.Gray)
+                    Text(
+                        text = "Kuponunuz bulunmamaktadır.", 
+                        color = Color.Gray,
+                        fontWeight = FontWeight.Medium
+                    )
                 }
             } else {
                 LazyColumn(
@@ -141,12 +152,12 @@ fun CouponCard(coupon: Coupon, onUse: () -> Unit) {
             
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(
-                    text = "Min. Tutar: ${coupon.minimumAmount}$",
+                    text = "Min. Tutar: ${String.format(Locale.getDefault(), "%.0f", coupon.minimumAmount)} TL",
                     fontSize = 11.sp,
                     color = Color.DarkGray
                 )
                 Text(
-                    text = "Sön Gün: ${coupon.expiresAt}",
+                    text = "Son Gün: ${coupon.expiresAt}",
                     fontSize = 11.sp,
                     color = Color.DarkGray
                 )
@@ -155,4 +166,3 @@ fun CouponCard(coupon: Coupon, onUse: () -> Unit) {
     }
 }
 
-private fun size(dp: androidx.compose.ui.unit.Dp) = Modifier.size(dp)

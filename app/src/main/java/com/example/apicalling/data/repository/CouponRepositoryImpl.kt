@@ -15,10 +15,15 @@ class CouponRepositoryImpl @Inject constructor(
 ) : CouponRepository {
 
     override suspend fun getUserCoupons(userId: Int): List<Coupon> {
-        // Direkt kullanıcının klasörünü çekiyoruz
-        val userCouponsMap = couponApiService.getUserCoupons(userId) ?: return emptyList()
-        return userCouponsMap.map { (id, dto) -> 
-            dto.toDomain(id, userId) 
+        val response = couponApiService.getUserCoupons(userId)
+        
+        if (response.isSuccessful) {
+            val userCouponsMap = response.body() ?: return emptyList()
+            return userCouponsMap.map { (id, dto) -> 
+                dto.toDomain(id, userId) 
+            }
+        } else {
+            return emptyList() // Hata durumunda da kullanıcıyı teknik detayla yormuyoruz
         }
     }
 
@@ -36,7 +41,7 @@ class CouponRepositoryImpl @Inject constructor(
         if (coupon.isUsed) return "Bu kupon daha önce kullanılmış."
         
         if (cartTotal < coupon.minimumAmount) {
-            return "Bu kupon için minimum sepet tutarı ${String.format("%.0f", coupon.minimumAmount)}$ olmalıdır."
+            return "Bu kupon için minimum sepet tutarı ${String.format("%.0f", coupon.minimumAmount)} TL olmalıdır."
         }
 
         val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
@@ -51,6 +56,8 @@ class CouponRepositoryImpl @Inject constructor(
     }
 
     override fun calculateDiscount(coupon: Coupon, cartTotal: Double): Double {
+        // Terminoloji: Pure TRY Calculation
+        // cartTotal zaten ViewModel'den TRY olarak geliyor.
         var discount = when (coupon.discountType) {
             DiscountType.PERCENTAGE -> (cartTotal * coupon.discountValue) / 100.0
             DiscountType.FIXED -> coupon.discountValue

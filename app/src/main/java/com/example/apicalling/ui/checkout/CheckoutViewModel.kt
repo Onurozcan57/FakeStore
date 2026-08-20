@@ -13,6 +13,7 @@ import com.example.apicalling.domain.repository.SessionRepository
 import com.example.apicalling.domain.usecase.CreatePaymentUseCase
 import com.example.apicalling.domain.usecase.SaveOrderUseCase
 import com.example.apicalling.domain.usecase.VerifyThreeDSUseCase
+import com.example.apicalling.ui.cart.CartItem
 import com.example.apicalling.util.PriceUtils.USD_TO_TRY_RATE
 import com.example.apicalling.util.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -115,14 +116,22 @@ class CheckoutViewModel @Inject constructor(
                 cartItems.isNotEmpty()
     }
 
-    fun confirmOrder(cartItems: List<ProductDto>, discount: Double, appliedCoupon: Coupon?) {
+    fun confirmOrder(cartItems: List<CartItem>, discount: Double, appliedCoupon: Coupon?) {
         val userId = sessionRepository.user.value?.id ?: return
-        val subtotalInUsd = cartItems.sumOf { it.price }
-        val shippingInUsd = if (subtotalInUsd >= 50.0) 0.0 else 10.0
-        val finalAmountInUsd = subtotalInUsd - discount + shippingInUsd
+        val subtotalInUsd = cartItems.sumOf { it.product.price * it.quantity }
+        val subtotalInTry = subtotalInUsd * USD_TO_TRY_RATE
         
-        // Ödeme için TRY karşılığını hesapla
-        val finalAmountInTry = finalAmountInUsd * USD_TO_TRY_RATE
+        val shippingLimitInTry = 300.0 // Kargo bedava sınırı 300 TL
+        val shippingFeeInTry = 60.0
+        
+        val isFreeShipping = subtotalInTry >= shippingLimitInTry
+        val actualShippingTry = if (isFreeShipping || subtotalInTry == 0.0) 0.0 else shippingFeeInTry
+        
+        // Ödeme ve Sipariş Kaydı için TRY üzerinden hesaplama
+        val discountInTry = discount // Discount zaten TL olarak geliyor
+        val finalAmountInTry = subtotalInTry - discountInTry + actualShippingTry
+        val finalAmountInUsd = finalAmountInTry / USD_TO_TRY_RATE
+        
         val orderId = "ORDER-${System.currentTimeMillis()}"
 
         viewModelScope.launch {
@@ -131,7 +140,7 @@ class CheckoutViewModel @Inject constructor(
             val paymentRequest = PaymentRequest(
                 userId = userId,
                 orderId = orderId,
-                amount = finalAmountInTry, // Backend'e TL tutarı gönderiyoruz
+                amount = finalAmountInTry, 
                 cardNumber = _state.value.cardNumber,
                 expireMonth = _state.value.expiryMonth,
                 expireYear = _state.value.expiryYear,
@@ -150,10 +159,10 @@ class CheckoutViewModel @Inject constructor(
                     val order = Order(
                         userId = userId,
                         orderId = orderId,
-                        items = cartItems.map { OrderItem(it.id, it.title, it.price, 1, it.thumbnail) },
+                        items = cartItems.map { OrderItem(it.product.id, it.product.title, it.product.price, it.quantity, it.product.thumbnail) },
                         subtotal = subtotalInUsd,
-                        discount = discount,
-                        shipping = shippingInUsd,
+                        discount = discount / USD_TO_TRY_RATE,
+                        shipping = actualShippingTry / USD_TO_TRY_RATE,
                         total = finalAmountInUsd,
                         appliedCoupon = appliedCoupon?.code,
                         address = selectedAddress,

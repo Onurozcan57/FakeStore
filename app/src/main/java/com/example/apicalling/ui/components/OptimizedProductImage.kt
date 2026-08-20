@@ -25,21 +25,20 @@ import coil.request.ImageRequest
  */
 @Composable
 fun OptimizedProductImage(
-    imageUrl: String,
+    imageModel: Any?,
     contentDescription: String?,
     modifier: Modifier = Modifier,
-    contentScale: ContentScale = ContentScale.Fit
+    contentScale: ContentScale = ContentScale.Fit,
 ) {
     val context = LocalContext.current
     
     // Request nesnesini stabilize ederek gereksiz recomposition ve request'leri önlüyoruz.
-    val request = remember(imageUrl) {
+    val request = remember(imageModel) {
         ImageRequest.Builder(context)
-            .data(imageUrl)
-            .crossfade(true) // Kullanıcı deneyimi için hafif bir crossfade
+            .data(imageModel)
+            .crossfade(true)
             .diskCachePolicy(CachePolicy.ENABLED)
             .memoryCachePolicy(CachePolicy.ENABLED)
-            .setHeader("Cache-Control", "max-age=31536000") // Önbelleği zorla
             .build()
     }
 

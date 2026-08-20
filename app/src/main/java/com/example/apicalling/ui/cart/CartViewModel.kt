@@ -29,8 +29,8 @@ class CartViewModel @Inject constructor(
     private val sessionRepository: SessionRepository
 ) : ViewModel() {
 
-    private val _cartItems = MutableStateFlow<List<ProductDto>>(emptyList())
-    val cartItems: StateFlow<List<ProductDto>> = _cartItems.asStateFlow()
+    private val _cartItems = MutableStateFlow<List<CartItem>>(emptyList())
+    val cartItems: StateFlow<List<CartItem>> = _cartItems.asStateFlow()
 
     private val _suggestedProducts = MutableStateFlow<List<ProductDto>>(emptyList())
 
@@ -58,7 +58,7 @@ class CartViewModel @Inject constructor(
     val couponError: StateFlow<String?> = _couponError.asStateFlow()
 
     fun updateSuggestedProducts(allProducts: List<ProductDto>) {
-        _suggestedProducts.value = getSuggestedProductsUseCase(_cartItems.value, allProducts)
+        _suggestedProducts.value = getSuggestedProductsUseCase(_cartItems.value.map { it.product }, allProducts)
     }
 
     fun togglePriceDroppedFilter() {
@@ -67,24 +67,65 @@ class CartViewModel @Inject constructor(
 
     fun addToCart(product: ProductDto) {
         _cartItems.update { current ->
-            if (current.any { it.id == product.id }) current else current + product
+            val existing = current.find { it.product.id == product.id }
+            if (existing != null) {
+                current.map { 
+                    if (it.product.id == product.id) it.copy(quantity = it.quantity + 1) else it 
+                }
+            } else {
+                current + CartItem(product)
+            }
         }
-        recalculateCoupon() // Sepet değişince kuponu tekrar hesapla
+        recalculateCoupon()
     }
 
     fun removeFromCart(product: ProductDto) {
         _cartItems.update { current -> 
-            current.filter { item -> item.id != product.id } 
+            current.filter { it.product.id != product.id } 
+        }
+        recalculateCoupon()
+    }
+
+    /**
+     * Terminoloji: Quantity Mutator
+     * Ürün miktarını artırır veya azaltır.
+     */
+    fun updateQuantity(productId: Int, delta: Int) {
+        _cartItems.update { current ->
+            current.mapNotNull { item ->
+                if (item.product.id == productId) {
+                    val newQuantity = item.quantity + delta
+                    if (newQuantity <= 0) null else item.copy(quantity = newQuantity)
+                } else {
+                    item
+                }
+            }
+        }
+        recalculateCoupon()
+    }
+
+    /**
+     * Terminoloji: Selection Mutator
+     * Ürünün sepette aktif/pasif olma durumunu değiştirir.
+     */
+    fun toggleSelection(productId: Int) {
+        _cartItems.update { current ->
+            current.map { item ->
+                if (item.product.id == productId) item.copy(isSelected = !item.isSelected) else item
+            }
         }
         recalculateCoupon()
     }
 
     fun applyCoupon(code: String) {
         val userId = sessionRepository.user.value?.id ?: return
-        val currentTotal = _cartItems.value.sumOf { it.price }
+        // Sadece seçili ürünlerin toplamını TRY'ye çevirerek UseCase'e gönderiyoruz
+        val currentTotalTry = _cartItems.value
+            .filter { it.isSelected }
+            .sumOf { it.product.price * it.quantity } * USD_TO_TRY_RATE
 
         viewModelScope.launch {
-            val result = applyCouponUseCase(userId, code, currentTotal)
+            val result = applyCouponUseCase(userId, code, currentTotalTry)
             when (result) {
                 is Resource.Success -> {
                     _appliedCoupon.value = result.data?.first
@@ -115,21 +156,19 @@ class CartViewModel @Inject constructor(
 
     private fun recalculateCoupon() {
         val coupon = _appliedCoupon.value ?: return
-        val currentTotal = _cartItems.value.sumOf { it.price }
+        // Sadece seçili ürünlerin toplamı üzerinden kupon kontrolü yapıyoruz
+        val currentTotalTry = _cartItems.value
+            .filter { it.isSelected }
+            .sumOf { it.product.price * it.quantity } * USD_TO_TRY_RATE
         
         // Eğer sepet tutarı minimum tutarın altına düşerse kuponu kaldır
-        if (currentTotal < coupon.minimumAmount) {
+        if (currentTotalTry < coupon.minimumAmount) {
             removeCoupon()
             _couponError.value = "Sepet tutarı minimum tutarın altına düştüğü için kupon kaldırıldı."
             return
         }
 
-        // İndirimi yeniden hesapla (Fiyatlar değişmiş olabilir)
-        // Burada repository'deki hesaplama mantığını kullanmak daha doğru
-        // Basitlik için ApplyCouponUseCase'i tekrar çağırabiliriz veya mantığı buraya koyabiliriz.
-        // Repository'den direkt çağırmak için UseCase'e metod ekleyebiliriz ama 
-        // şimdilik sadece sepet boşsa kaldır diyelim.
-        if (_cartItems.value.isEmpty()) {
+        if (_cartItems.value.none { it.isSelected }) {
             removeCoupon()
         }
     }
@@ -145,13 +184,17 @@ class CartViewModel @Inject constructor(
     }
 
     fun getTotalPrice(): Double {
-        val subtotal = _cartItems.value.sumOf { it.price } * USD_TO_TRY_RATE
-        val discountInTry = _discount.value * USD_TO_TRY_RATE
-        val shippingLimit = 50.0 * USD_TO_TRY_RATE
-        val shippingFee = 10.0 * USD_TO_TRY_RATE
+        // Sadece seçili ürünleri hesaba katıyoruz
+        val subtotalTry = _cartItems.value
+            .filter { it.isSelected }
+            .sumOf { it.product.price * it.quantity } * USD_TO_TRY_RATE
+            
+        val discountTry = _discount.value 
+        val shippingLimitTry = 300.0 // Kargo bedava sınırı 300 TL
+        val shippingFeeTry = 60.0 // 60 TL sabit kargo ücreti
         
-        val shipping = if (subtotal >= shippingLimit || subtotal == 0.0) 0.0 else shippingFee
-        return subtotal - discountInTry + shipping
+        val shipping = if (subtotalTry >= shippingLimitTry || subtotalTry == 0.0) 0.0 else shippingFeeTry
+        return subtotalTry - discountTry + shipping
     }
 
     fun clearCart() {

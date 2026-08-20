@@ -13,10 +13,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -26,6 +29,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Popup
 import coil.compose.AsyncImage
 import com.example.apicalling.data.model.ProductDto
 import com.example.apicalling.domain.model.Coupon
@@ -36,7 +40,7 @@ import com.example.apicalling.util.PriceUtils
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CartScreen(
-    cartItems: List<ProductDto>,
+    cartItems: List<CartItem>,
     favoriteProducts: List<ProductDto>,
     suggestedProducts: List<ProductDto>,
     favoriteIds: Set<Int>,
@@ -46,6 +50,8 @@ fun CartScreen(
     couponError: String?,
     onProductClick: (Int) -> Unit,
     onRemoveFromCart: (ProductDto) -> Unit,
+    onUpdateQuantity: (Int, Int) -> Unit, // Yeni: Miktar güncelleme
+    onToggleSelection: (Int) -> Unit, // Yeni: Seçim durumu
     onFavoriteClick: (Int) -> Unit,
     onAddToCart: (ProductDto) -> Unit,
     onApplyCoupon: (String) -> Unit,
@@ -72,14 +78,6 @@ fun CartScreen(
 
     Box(modifier = Modifier.fillMaxSize().background(Color.White)) {
         Scaffold(
-            snackbarHost = { 
-                // Terminoloji: Offset Snackbar Host
-                // Uyarı mesajlarını ödeme barının üstünde göstermek için padding ekledik
-                SnackbarHost(
-                    hostState = snackbarHostState,
-                    modifier = Modifier.padding(bottom = 100.dp) 
-                ) 
-            },
             containerColor = Color.Transparent
         ) { innerPadding ->
             Column(
@@ -108,6 +106,8 @@ fun CartScreen(
                     CartContentView(
                         cartItems = cartItems, 
                         onRemove = onRemoveFromCart,
+                        onUpdateQuantity = onUpdateQuantity,
+                        onToggleSelection = onToggleSelection,
                         onCouponClick = { showCouponSheet = true },
                         appliedCoupon = appliedCoupon,
                         onRemoveCoupon = onRemoveCoupon
@@ -136,16 +136,34 @@ fun CartScreen(
             }
         }
 
+        // Terminoloji: Top-Level Window Popup
+        // Snackbar'ı bir Popup içine alarak, MainActivity'deki Navbar dahil tüm 
+        // UI elemanlarının üzerinde (Overlay) görünmesini sağlıyoruz.
+        if (snackbarHostState.currentSnackbarData != null) {
+            Popup(
+                alignment = Alignment.BottomCenter
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 20.dp), // Navbar'ın tam üzerine binmesi için
+                    contentAlignment = Alignment.BottomCenter
+                ) {
+                    SnackbarHost(hostState = snackbarHostState)
+                }
+            }
+        }
+
         if (cartItems.isNotEmpty()) {
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = 12.dp)
+                    .padding(bottom = 92.dp) // Navbar yüksekliği kadar (80dp + orijinal 12dp) yukarı taşıdık
                     .fillMaxWidth(),
                 contentAlignment = Alignment.BottomCenter
             ) {
                 CartBottomBar(
-                    totalPrice = cartItems.sumOf { it.price },
+                    totalPrice = cartItems.sumOf { it.product.price * it.quantity },
                     discount = discount,
                     isExpanded = isDetailExpanded,
                     onExpandClick = { isDetailExpanded = !isDetailExpanded },
@@ -273,12 +291,17 @@ fun EmptyCartView() {
 
 @Composable
 fun CartContentView(
-    cartItems: List<ProductDto>, 
+    cartItems: List<CartItem>, 
     onRemove: (ProductDto) -> Unit, 
+    onUpdateQuantity: (Int, Int) -> Unit,
+    onToggleSelection: (Int) -> Unit,
     onCouponClick: () -> Unit,
     appliedCoupon: Coupon?,
     onRemoveCoupon: () -> Unit
 ) {
+    val totalTry = cartItems.filter { it.isSelected }.sumOf { it.product.price * it.quantity } * PriceUtils.USD_TO_TRY_RATE
+    val isFreeShipping = totalTry >= 300.0
+
     Column(modifier = Modifier.padding(16.dp)) {
         Surface(
             modifier = Modifier.fillMaxWidth().clickable { onCouponClick() },
@@ -288,7 +311,7 @@ fun CartContentView(
         ) {
             Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                 Row(
-                    modifier = Modifier.weight(1f), // Metin alanına esneklik verdik (Terminoloji: Flexible Layout)
+                    modifier = Modifier.weight(1f),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
@@ -302,7 +325,7 @@ fun CartContentView(
                         fontWeight = FontWeight.Bold,
                         color = if (appliedCoupon != null) MaterialTheme.colorScheme.primary else Color.Black,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis // Uzun kodlarda taşmayı önler
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
                 
@@ -322,32 +345,137 @@ fun CartContentView(
             }
         }
         Spacer(modifier = Modifier.height(16.dp))
-        cartItems.forEach { product ->
-            CartItemCard(product = product, onRemove = { onRemove(product) })
+        cartItems.forEach { item ->
+            CartItemCard(
+                item = item, 
+                isFreeShipping = isFreeShipping,
+                onRemove = { onRemove(item.product) },
+                onUpdateQuantity = { delta -> onUpdateQuantity(item.product.id, delta) },
+                onToggleSelection = { onToggleSelection(item.product.id) }
+            )
             Spacer(modifier = Modifier.height(12.dp))
         }
     }
 }
 
 @Composable
-fun CartItemCard(product: ProductDto, onRemove: () -> Unit) {
+fun CartItemCard(
+    item: CartItem, 
+    isFreeShipping: Boolean,
+    onRemove: () -> Unit,
+    onUpdateQuantity: (Int) -> Unit,
+    onToggleSelection: () -> Unit
+) {
+    val product = item.product
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .alpha(if (item.isSelected) 1f else 0.5f), // Seçili değilse kartı soluklaştırıyoruz
         shape = RoundedCornerShape(12.dp),
         border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.3f))
     ) {
-        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Checkbox(checked = true, onCheckedChange = { }, colors = CheckboxDefaults.colors(checkedColor = MaterialTheme.colorScheme.primary))
-            Box(modifier = Modifier.size(80.dp).clip(RoundedCornerShape(8.dp)).background(Color(0xFFF5F5F5)), contentAlignment = Alignment.Center) {
-                AsyncImage(model = product.thumbnail, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+        Column {
+            if (isFreeShipping && item.isSelected) {
+                // Terminoloji: Dynamic Promotion Badge
+                // Kargo bedava satırı: Gri arka plan, özel renkli metinler ve ikonlar.
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 4.dp) // Tam kaplamasın diye padding
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(Color.LightGray.copy(alpha = 0.2f))
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.LocalShipping,
+                        contentDescription = null,
+                        tint = Color(0xFF25921f),
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(text = "300 TL üzerine ", fontSize = 10.sp, color = Color.Black, fontWeight = FontWeight.Bold)
+                    Text(text = "kargo bedava", fontSize = 10.sp, color = Color(0xFF25921f), fontWeight = FontWeight.Bold)
+                    
+                    Spacer(modifier = Modifier.weight(1f))
+                    
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = null,
+                        tint = Color(0xFF25921f),
+                        modifier = Modifier.size(12.dp)
+                    )
+                    Spacer(modifier = Modifier.width(2.dp))
+                    Text(text = "uygulandı", fontSize = 10.sp, color = Color(0xFF25921f), fontWeight = FontWeight.Bold)
+                }
             }
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(product.title, maxLines = 2, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.Medium)
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(PriceUtils.formatUsdAsTry(product.price), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            
+            Row(modifier = Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Checkbox(
+                    checked = item.isSelected, 
+                    onCheckedChange = { onToggleSelection() }, 
+                    colors = CheckboxDefaults.colors(checkedColor = MaterialTheme.colorScheme.primary)
+                )
+                Box(modifier = Modifier.size(80.dp).clip(RoundedCornerShape(8.dp)).background(Color(0xFFF5F5F5)), contentAlignment = Alignment.Center) {
+                    AsyncImage(model = product.thumbnail, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(product.title, maxLines = 2, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.Medium)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(PriceUtils.formatUsdAsTry(product.price), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    // Terminoloji: Quantity Picker / Stepper
+                    // Miktar seçici alanı: Fiyatın altında, gri border'lı bir kutu içinde.
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.5f)),
+                        color = Color.White
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                        ) {
+                            // Sol taraf: Çöp veya Eksi ikonu
+                            IconButton(
+                                onClick = { 
+                                    if (item.quantity == 1) onRemove() else onUpdateQuantity(-1) 
+                                },
+                                modifier = Modifier.size(30.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (item.quantity == 1) Icons.Outlined.DeleteOutline else Icons.Default.Remove,
+                                    contentDescription = null,
+                                    tint = if (item.quantity == 1) Color.Black else Color.Black,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            
+                            Text(
+                                text = item.quantity.toString(),
+                                modifier = Modifier.padding(horizontal = 12.dp),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp
+                            )
+                            
+                            // Sağ taraf: Artı ikonu
+                            IconButton(
+                                onClick = { onUpdateQuantity(1) },
+                                modifier = Modifier.size(30.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = null,
+                                    tint = Color.Black,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    }
+                }
             }
-            IconButton(onClick = onRemove) { Icon(Icons.Default.Delete, contentDescription = "Sil", tint = Color.LightGray) }
         }
     }
 }
@@ -456,11 +584,11 @@ fun CartBottomBar(
     isEnabled: Boolean = true, // Yeni: Buton aktiflik durumu
     onCheckoutClick: () -> Unit = {}
 ) {
-    val shippingLimit = 50.0 * PriceUtils.USD_TO_TRY_RATE
-    val shippingFee = 5.0 * PriceUtils.USD_TO_TRY_RATE
+    val shippingLimit = 300.0 // Kargo bedava sınırı 300 TL
+    val shippingFee = 60.0 // 60 TL sabit kargo ücreti
     
     val subtotalInTry = totalPrice * PriceUtils.USD_TO_TRY_RATE
-    val discountInTry = discount * PriceUtils.USD_TO_TRY_RATE
+    val discountInTry = discount // Zaten TL birimiyle geliyor
     val isFreeShipping = subtotalInTry >= shippingLimit
     val actualShipping = if (isFreeShipping || subtotalInTry == 0.0) 0.0 else shippingFee
     val finalTotal = subtotalInTry - discountInTry + actualShipping
@@ -477,7 +605,7 @@ fun CartBottomBar(
                         Spacer(modifier = Modifier.height(8.dp))
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text("Kupon İndirimi", color = Color.Gray, fontSize = 14.sp)
-                            Text("-${PriceUtils.formatUsdAsTry(discount)}", color = Color.Red, fontWeight = FontWeight.Bold)
+                            Text("-${PriceUtils.formatTry(discountInTry)}", color = Color.Red, fontWeight = FontWeight.Bold)
                         }
                     }
                     Spacer(modifier = Modifier.height(8.dp))

@@ -34,6 +34,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.apicalling.domain.repository.FavoriteRepository
 import com.example.apicalling.domain.repository.SessionRepository
 import com.example.apicalling.ui.cart.CartScreen
+import com.example.apicalling.ui.cart.CartItem
 import com.example.apicalling.ui.cart.CartViewModel
 import com.example.apicalling.ui.category.CategoryDetailScreen
 import com.example.apicalling.ui.category.CategoryDetailViewModel
@@ -154,6 +155,7 @@ class MainActivity : ComponentActivity() {
                             val couponViewModel: CouponViewModel = hiltViewModel()
                             val couponState by couponViewModel.state.collectAsState()
                             
+                            val cartItems by cartViewModel.cartItems.collectAsState()
                             val appliedCoupon by cartViewModel.appliedCoupon.collectAsState()
                             val discount by cartViewModel.discount.collectAsState()
                             val couponError by cartViewModel.couponError.collectAsState()
@@ -165,7 +167,7 @@ class MainActivity : ComponentActivity() {
                             }
 
                             CartScreen(
-                                cartItems = cartViewModel.cartItems.collectAsState().value,
+                                cartItems = cartItems,
                                 favoriteProducts = favoriteViewModel.state.collectAsState().value.allFavoriteProducts,
                                 suggestedProducts = suggestedProducts,
                                 favoriteIds = favoriteIds,
@@ -175,6 +177,8 @@ class MainActivity : ComponentActivity() {
                                 couponError = couponError,
                                 onProductClick = { navController.navigate(Screen.ProductDetail.createRoute(it)) },
                                 onRemoveFromCart = { cartViewModel.removeFromCart(it) },
+                                onUpdateQuantity = { id, delta -> cartViewModel.updateQuantity(id, delta) },
+                                onToggleSelection = { cartViewModel.toggleSelection(it) },
                                 onFavoriteClick = { favoriteViewModel.toggleFavorite(it) },
                                 onAddToCart = { cartViewModel.addToCart(it) },
                                 onApplyCoupon = { cartViewModel.applyCoupon(it) },
@@ -321,7 +325,9 @@ fun AppBottomBar(navController: androidx.navigation.NavHostController, currentDe
                         BadgedBox(
                             badge = {
                                 if (item is BottomNavItem.Cart && cartSize > 0) {
-                                    Badge { Text(text = cartSize.toString()) }
+                                    Badge(containerColor = MaterialTheme.colorScheme.primary) { 
+                                        Text(text = cartSize.toString()) 
+                                    }
                                 }
                             }
                         ) {

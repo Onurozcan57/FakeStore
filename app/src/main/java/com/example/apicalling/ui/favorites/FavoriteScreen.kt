@@ -91,7 +91,8 @@ fun FavoriteScreen(
                         FilterButton(
                             text = "Fiyatı Düşenler",
                             icon = Icons.Default.TrendingDown,
-                            onClick = { }
+                            isActive = state.isPriceDroppedFilterActive,
+                            onClick = { viewModel.togglePriceDroppedFilter() }
                         )
                     }
                     item {
@@ -194,23 +195,42 @@ fun SearchBox(query: String, onQueryChange: (String) -> Unit) {
 }
 
 @Composable
-fun FilterButton(text: String, icon: ImageVector, onClick: () -> Unit) {
+fun FilterButton(
+    text: String, 
+    icon: ImageVector, 
+    isActive: Boolean = false,
+    onClick: () -> Unit
+) {
     Surface(
         modifier = Modifier
             .height(40.dp)
             .clickable { onClick() }
-            .border(1.dp, Color.LightGray.copy(alpha = 0.5f), RoundedCornerShape(8.dp)),
+            .border(
+                1.dp, 
+                if (isActive) MaterialTheme.colorScheme.primary else Color.LightGray.copy(alpha = 0.5f), 
+                RoundedCornerShape(8.dp)
+            ),
         shape = RoundedCornerShape(8.dp),
-        color = Color(0xFFF5F5F5)
+        color = if (isActive) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f) else Color(0xFFF5F5F5)
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
-            Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(18.dp))
+            Icon(
+                imageVector = icon, 
+                contentDescription = null, 
+                modifier = Modifier.size(18.dp),
+                tint = if (isActive) MaterialTheme.colorScheme.primary else Color.Black
+            )
             Spacer(modifier = Modifier.width(8.dp))
-            Text(text = text, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+            Text(
+                text = text, 
+                fontSize = 12.sp, 
+                fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium,
+                color = if (isActive) MaterialTheme.colorScheme.primary else Color.Black
+            )
         }
     }
 }

@@ -288,7 +288,7 @@ fun CampaignSlider(images: List<Any>) {
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
                     OptimizedProductImage(
-                        imageUrl = images[page].toString(), 
+                        imageModel = images[page], 
                         contentDescription = "Kampanya ${page + 1}", 
                         modifier = Modifier.fillMaxSize(), 
                         contentScale = ContentScale.Crop
@@ -343,7 +343,7 @@ fun CategoryCard(category: Category, onClick: () -> Unit) {
     Card(modifier = Modifier.width(72.dp).height(72.dp).clickable { onClick() }, shape = RoundedCornerShape(10.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFF6F6F6))) {
         Column(modifier = Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
             Box(modifier = Modifier.fillMaxWidth().weight(0.65f).padding(0.dp), contentAlignment = Alignment.Center) {
-                OptimizedProductImage(imageUrl = category.imageUrl, contentDescription = null, modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(8.dp)), contentScale = ContentScale.Fit)
+                OptimizedProductImage(imageModel = category.imageUrl, contentDescription = null, modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(8.dp)), contentScale = ContentScale.Fit)
             }
             Box(modifier = Modifier.fillMaxWidth().weight(0.35f).padding(bottom = 4.dp, start = 4.dp, end = 4.dp), contentAlignment = Alignment.Center) {
                 Text(text = category.title, style = MaterialTheme.typography.labelSmall, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.DarkGray, textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -414,7 +414,7 @@ fun PromoCard(promo: PromoItem) {
         colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
         OptimizedProductImage(
-            imageUrl = promo.imageUrl, 
+            imageModel = promo.imageUrl, 
             contentDescription = null, 
             modifier = Modifier.fillMaxSize(), 
             contentScale = ContentScale.Crop

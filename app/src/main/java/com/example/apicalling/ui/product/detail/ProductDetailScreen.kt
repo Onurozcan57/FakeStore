@@ -102,7 +102,9 @@ fun ProductDetailScreen(
                         BadgedBox(
                             badge = {
                                 if (cartItemCount > 0) {
-                                    Badge { Text(text = cartItemCount.toString()) }
+                                    Badge(containerColor = MaterialTheme.colorScheme.primary) { 
+                                        Text(text = cartItemCount.toString()) 
+                                    }
                                 }
                             }
                         ) {
