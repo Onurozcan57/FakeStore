@@ -130,13 +130,15 @@ fun ProductDetailScreen(
                     shape = RoundedCornerShape(28.dp),
                     shadowElevation = 12.dp,
                     color = Color.White
+
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 20.dp, vertical = 10.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
+
                     ) {
                         Text(
                             text = PriceUtils.formatUsdAsTry(product.price),
@@ -171,6 +173,7 @@ fun ProductDetailScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+
         ) {
             if (state.isLoading) {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
@@ -185,6 +188,7 @@ fun ProductDetailScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .verticalScroll(scrollState)
+                        .background(color = Color.Gray)
                 ) {
                     ProductImageCarousel(
                         images = product.images,
@@ -204,9 +208,9 @@ fun ProductDetailScreen(
                                 text = product.title,
                                 style = MaterialTheme.typography.headlineSmall,
                                 fontWeight = FontWeight.Bold,
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f),
                             )
-                            
+
                             Spacer(modifier = Modifier.width(16.dp))
 
                             RatingBox(
@@ -217,11 +221,7 @@ fun ProductDetailScreen(
 
                         Spacer(modifier = Modifier.height(16.dp))
                         
-                        Text(
-                            text = product.description,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Color.Gray
-                        )
+
 
                         Spacer(modifier = Modifier.height(24.dp))
                         HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray.copy(alpha = 0.5f))

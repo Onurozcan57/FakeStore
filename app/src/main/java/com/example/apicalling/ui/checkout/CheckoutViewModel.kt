@@ -28,16 +28,22 @@ enum class PaymentStatus {
     IDLE, LOADING, THREE_DS_REQUIRED, VERIFYING_OTP, SUCCESS, ERROR
 }
 
+enum class PaymentMethod {
+    CREDIT_CARD, CASH_ON_DELIVERY
+}
+
 data class CheckoutUiState(
     val addresses: List<AddressDto> = emptyList(),
     val selectedAddressId: String? = null,
     val addressForm: AddressDto = AddressDto(),
     val isAddingNewAddress: Boolean = false,
+    val paymentMethod: PaymentMethod = PaymentMethod.CREDIT_CARD,
+    val isUsingSavedCard: Boolean = false,
     val cardNumber: String = "",
     val cvv: String = "",
     val expiryMonth: String = "",
     val expiryYear: String = "",
-    val otp: String = "", // Yeni
+    val otp: String = "",
     val paymentStatus: PaymentStatus = PaymentStatus.IDLE,
     val paymentErrorMessage: String? = null,
     val paymentId: String? = null,
@@ -99,7 +105,48 @@ class CheckoutViewModel @Inject constructor(
     }
 
     fun updateCardInfo(number: String, cvv: String, month: String, year: String) {
-        _state.update { it.copy(cardNumber = number, cvv = cvv, expiryMonth = month, expiryYear = year) }
+        _state.update { it.copy(cardNumber = number, cvv = cvv, expiryMonth = month, expiryYear = year, isUsingSavedCard = false) }
+    }
+
+    /**
+     * Terminoloji: Payment Method Switcher
+     * Ödeme yöntemini değiştirir ve formu resetler.
+     */
+    fun setPaymentMethod(method: PaymentMethod) {
+        _state.update { it.copy(paymentMethod = method) }
+    }
+
+    /**
+     * Terminoloji: Autofill Profile Data
+     * Kullanıcının profilindeki kayıtlı banka kartı bilgilerini forma doldurur.
+     */
+    fun useSavedCard() {
+        val user = sessionRepository.user.value
+        val bank = user?.bank
+        if (bank != null) {
+            val expireParts = bank.cardExpire.split("/")
+            _state.update { 
+                it.copy(
+                    isUsingSavedCard = true,
+                    cardNumber = bank.cardNumber.replace(" ", ""),
+                    expiryMonth = expireParts.getOrNull(0) ?: "",
+                    expiryYear = expireParts.getOrNull(1) ?: "",
+                    cvv = "***" // CVV güvenlik gereği profil verisinde olmaz, sembolik doldurduk
+                ) 
+            }
+        }
+    }
+
+    fun useNewCard() {
+        _state.update { 
+            it.copy(
+                isUsingSavedCard = false,
+                cardNumber = "",
+                expiryMonth = "",
+                expiryYear = "",
+                cvv = ""
+            ) 
+        }
     }
 
     fun onOtpChange(newOtp: String) {
@@ -108,16 +155,22 @@ class CheckoutViewModel @Inject constructor(
 
     fun isFormValid(cartItems: List<ProductDto>): Boolean {
         val s = _state.value
-        return s.selectedAddressId != null &&
-                s.cardNumber.length >= 16 &&
-                s.cvv.length >= 3 &&
-                s.expiryMonth.isNotEmpty() &&
-                s.expiryYear.isNotEmpty() &&
-                cartItems.isNotEmpty()
+        if (s.selectedAddressId == null || cartItems.isEmpty()) return false
+        
+        return if (s.paymentMethod == PaymentMethod.CREDIT_CARD) {
+            s.cardNumber.length >= 16 &&
+            s.cvv.length >= 3 &&
+            s.expiryMonth.isNotEmpty() &&
+            s.expiryYear.isNotEmpty()
+        } else {
+            true // Kapıda ödeme için ek alan gerekmiyor
+        }
     }
 
     fun confirmOrder(cartItems: List<CartItem>, discount: Double, appliedCoupon: Coupon?) {
         val userId = sessionRepository.user.value?.id ?: return
+        val s = _state.value
+        
         val subtotalInUsd = cartItems.sumOf { it.product.price * it.quantity }
         val subtotalInTry = subtotalInUsd * USD_TO_TRY_RATE
         
@@ -127,13 +180,19 @@ class CheckoutViewModel @Inject constructor(
         val isFreeShipping = subtotalInTry >= shippingLimitInTry
         val actualShippingTry = if (isFreeShipping || subtotalInTry == 0.0) 0.0 else shippingFeeInTry
         
-        // Ödeme ve Sipariş Kaydı için TRY üzerinden hesaplama
-        val discountInTry = discount // Discount zaten TL olarak geliyor
+        val discountInTry = discount 
         val finalAmountInTry = subtotalInTry - discountInTry + actualShippingTry
         val finalAmountInUsd = finalAmountInTry / USD_TO_TRY_RATE
         
         val orderId = "ORDER-${System.currentTimeMillis()}"
 
+        // Kapıda ödeme ise doğrudan başarıya git
+        if (s.paymentMethod == PaymentMethod.CASH_ON_DELIVERY) {
+            processOrderSuccess(userId, orderId, cartItems, subtotalInUsd, discount, actualShippingTry, finalAmountInUsd, appliedCoupon, "PENDING_CASH")
+            return
+        }
+
+        // Kredi kartı süreci
         viewModelScope.launch {
             _state.update { it.copy(paymentStatus = PaymentStatus.LOADING, paymentErrorMessage = null) }
 
@@ -141,48 +200,60 @@ class CheckoutViewModel @Inject constructor(
                 userId = userId,
                 orderId = orderId,
                 amount = finalAmountInTry, 
-                cardNumber = _state.value.cardNumber,
-                expireMonth = _state.value.expiryMonth,
-                expireYear = _state.value.expiryYear,
-                cvv = _state.value.cvv
+                cardNumber = s.cardNumber,
+                expireMonth = s.expiryMonth,
+                expireYear = s.expiryYear,
+                cvv = s.cvv
             )
 
             val result = createPaymentUseCase(paymentRequest)
             when (result) {
                 is Resource.Success -> {
                     val response = result.data!!
-                    val paymentId = response.paymentId
-                    val paymentStatus = response.status
-
-                    // Siparişi Firebase'e kaydet
-                    val selectedAddress = _state.value.addresses.find { it.id == _state.value.selectedAddressId } ?: AddressDto()
-                    val order = Order(
-                        userId = userId,
-                        orderId = orderId,
-                        items = cartItems.map { OrderItem(it.product.id, it.product.title, it.product.price, it.quantity, it.product.thumbnail) },
-                        subtotal = subtotalInUsd,
-                        discount = discount / USD_TO_TRY_RATE,
-                        shipping = actualShippingTry / USD_TO_TRY_RATE,
-                        total = finalAmountInUsd,
-                        appliedCoupon = appliedCoupon?.code,
-                        address = selectedAddress,
-                        paymentId = paymentId,
-                        paymentStatus = paymentStatus,
-                        createdAt = System.currentTimeMillis()
-                    )
-                    
-                    saveOrderUseCase(order)
-
-                    if (paymentStatus == "3DS_REQUIRED") {
-                        _state.update { it.copy(paymentStatus = PaymentStatus.THREE_DS_REQUIRED, paymentId = paymentId) }
-                    } else {
-                        _state.update { it.copy(paymentStatus = PaymentStatus.SUCCESS) }
-                    }
+                    processOrderSuccess(userId, orderId, cartItems, subtotalInUsd, discount, actualShippingTry, finalAmountInUsd, appliedCoupon, response.status, response.paymentId)
                 }
                 is Resource.Error -> {
                     _state.update { it.copy(paymentStatus = PaymentStatus.ERROR, paymentErrorMessage = result.message) }
                 }
                 else -> {}
+            }
+        }
+    }
+
+    private fun processOrderSuccess(
+        userId: Int,
+        orderId: String,
+        cartItems: List<CartItem>,
+        subtotalInUsd: Double,
+        discountInTry: Double,
+        actualShippingTry: Double,
+        finalAmountInUsd: Double,
+        appliedCoupon: Coupon?,
+        paymentStatus: String,
+        paymentId: String? = null
+    ) {
+        val selectedAddress = _state.value.addresses.find { it.id == _state.value.selectedAddressId } ?: AddressDto()
+        val order = Order(
+            userId = userId,
+            orderId = orderId,
+            items = cartItems.map { OrderItem(it.product.id, it.product.title, it.product.price, it.quantity, it.product.thumbnail) },
+            subtotal = subtotalInUsd,
+            discount = discountInTry / USD_TO_TRY_RATE,
+            shipping = actualShippingTry / USD_TO_TRY_RATE,
+            total = finalAmountInUsd,
+            appliedCoupon = appliedCoupon?.code,
+            address = selectedAddress,
+            paymentId = paymentId ?: "CASH_PAYMENT",
+            paymentStatus = paymentStatus,
+            createdAt = System.currentTimeMillis()
+        )
+        
+        viewModelScope.launch {
+            saveOrderUseCase(order)
+            if (paymentStatus == "3DS_REQUIRED") {
+                _state.update { it.copy(paymentStatus = PaymentStatus.THREE_DS_REQUIRED, paymentId = paymentId) }
+            } else {
+                _state.update { it.copy(paymentStatus = PaymentStatus.SUCCESS) }
             }
         }
     }

@@ -1,9 +1,11 @@
 package com.example.apicalling.ui.cart
 
+import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.apicalling.data.model.ProductDto
 import com.example.apicalling.domain.model.Coupon
+import com.example.apicalling.domain.repository.CartRepository
 import com.example.apicalling.domain.repository.SessionRepository
 import com.example.apicalling.domain.usecase.ApplyCouponUseCase
 import com.example.apicalling.domain.usecase.GetSuggestedProductsUseCase
@@ -15,6 +17,8 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -26,7 +30,8 @@ class CartViewModel @Inject constructor(
     private val getSuggestedProductsUseCase: GetSuggestedProductsUseCase,
     private val applyCouponUseCase: ApplyCouponUseCase,
     private val markCouponAsUsedUseCase: MarkCouponAsUsedUseCase,
-    private val sessionRepository: SessionRepository
+    private val sessionRepository: SessionRepository,
+    private val cartRepository: CartRepository
 ) : ViewModel() {
 
     private val _cartItems = MutableStateFlow<List<CartItem>>(emptyList())
@@ -42,7 +47,7 @@ class CartViewModel @Inject constructor(
         _isPriceDroppedFilterActive
     ) { products, filterActive ->
         if (filterActive) {
-            products.filter { it.discountPercentage > 13.0 } // İndirimli olanlar
+            products.filter { it.discountPercentage > 13.0 }
         } else {
             products
         }
@@ -56,6 +61,27 @@ class CartViewModel @Inject constructor(
 
     private val _couponError = MutableStateFlow<String?>(null)
     val couponError: StateFlow<String?> = _couponError.asStateFlow()
+
+    init {
+        // Terminoloji: Session-Driven Data Loading
+        // Kullanıcı değiştiğinde (Giriş/Çıkış), sepet verisini diskten yükler veya temizleriz.
+        snapshotFlow { sessionRepository.user.value }
+            .onEach { user ->
+                if (user != null) {
+                    val savedCart = cartRepository.getCart(user.id)
+                    _cartItems.value = savedCart
+                } else {
+                    _cartItems.value = emptyList()
+                    removeCoupon()
+                }
+            }
+            .launchIn(viewModelScope)
+    }
+
+    private fun persistCart() {
+        val userId = sessionRepository.user.value?.id ?: return
+        cartRepository.saveCart(userId, _cartItems.value)
+    }
 
     fun updateSuggestedProducts(allProducts: List<ProductDto>) {
         _suggestedProducts.value = getSuggestedProductsUseCase(_cartItems.value.map { it.product }, allProducts)
@@ -76,6 +102,7 @@ class CartViewModel @Inject constructor(
                 current + CartItem(product)
             }
         }
+        persistCart()
         recalculateCoupon()
     }
 
@@ -83,13 +110,10 @@ class CartViewModel @Inject constructor(
         _cartItems.update { current -> 
             current.filter { it.product.id != product.id } 
         }
+        persistCart()
         recalculateCoupon()
     }
 
-    /**
-     * Terminoloji: Quantity Mutator
-     * Ürün miktarını artırır veya azaltır.
-     */
     fun updateQuantity(productId: Int, delta: Int) {
         _cartItems.update { current ->
             current.mapNotNull { item ->
@@ -101,25 +125,22 @@ class CartViewModel @Inject constructor(
                 }
             }
         }
+        persistCart()
         recalculateCoupon()
     }
 
-    /**
-     * Terminoloji: Selection Mutator
-     * Ürünün sepette aktif/pasif olma durumunu değiştirir.
-     */
     fun toggleSelection(productId: Int) {
         _cartItems.update { current ->
             current.map { item ->
                 if (item.product.id == productId) item.copy(isSelected = !item.isSelected) else item
             }
         }
+        persistCart()
         recalculateCoupon()
     }
 
     fun applyCoupon(code: String) {
         val userId = sessionRepository.user.value?.id ?: return
-        // Sadece seçili ürünlerin toplamını TRY'ye çevirerek UseCase'e gönderiyoruz
         val currentTotalTry = _cartItems.value
             .filter { it.isSelected }
             .sumOf { it.product.price * it.quantity } * USD_TO_TRY_RATE
@@ -146,22 +167,16 @@ class CartViewModel @Inject constructor(
         _couponError.value = null
     }
 
-    /**
-     * Terminoloji: Error State Reset
-     * Hata mesajı UI tarafından bir kez gösterildikten sonra temizlenir.
-     */
     fun clearCouponError() {
         _couponError.value = null
     }
 
     private fun recalculateCoupon() {
         val coupon = _appliedCoupon.value ?: return
-        // Sadece seçili ürünlerin toplamı üzerinden kupon kontrolü yapıyoruz
         val currentTotalTry = _cartItems.value
             .filter { it.isSelected }
             .sumOf { it.product.price * it.quantity } * USD_TO_TRY_RATE
         
-        // Eğer sepet tutarı minimum tutarın altına düşerse kuponu kaldır
         if (currentTotalTry < coupon.minimumAmount) {
             removeCoupon()
             _couponError.value = "Sepet tutarı minimum tutarın altına düştüğü için kupon kaldırıldı."
@@ -184,14 +199,13 @@ class CartViewModel @Inject constructor(
     }
 
     fun getTotalPrice(): Double {
-        // Sadece seçili ürünleri hesaba katıyoruz
         val subtotalTry = _cartItems.value
             .filter { it.isSelected }
             .sumOf { it.product.price * it.quantity } * USD_TO_TRY_RATE
             
         val discountTry = _discount.value 
-        val shippingLimitTry = 300.0 // Kargo bedava sınırı 300 TL
-        val shippingFeeTry = 60.0 // 60 TL sabit kargo ücreti
+        val shippingLimitTry = 300.0 
+        val shippingFeeTry = 60.0 
         
         val shipping = if (subtotalTry >= shippingLimitTry || subtotalTry == 0.0) 0.0 else shippingFeeTry
         return subtotalTry - discountTry + shipping
@@ -199,5 +213,7 @@ class CartViewModel @Inject constructor(
 
     fun clearCart() {
         _cartItems.value = emptyList()
+        val userId = sessionRepository.user.value?.id ?: return
+        cartRepository.clearCart(userId)
     }
 }

@@ -174,13 +174,73 @@ fun CheckoutScreen(
 
                     // 3. Ödeme Seçenekleri Box
                     CheckoutSection(title = "Ödeme Seçenekleri") {
-                        PaymentForm(
-                            cardNumber = state.cardNumber,
-                            cvv = state.cvv,
-                            month = state.expiryMonth,
-                            year = state.expiryYear,
-                            onCardInfoChange = { n, c, m, y -> viewModel.updateCardInfo(n, c, m, y) }
-                        )
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            // Kapıda Ödeme Seçeneği
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { viewModel.setPaymentMethod(PaymentMethod.CASH_ON_DELIVERY) }
+                                    .padding(vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                RadioButton(
+                                    selected = state.paymentMethod == PaymentMethod.CASH_ON_DELIVERY,
+                                    onClick = { viewModel.setPaymentMethod(PaymentMethod.CASH_ON_DELIVERY) },
+                                    colors = RadioButtonDefaults.colors(selectedColor = MaterialTheme.colorScheme.primary)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Column {
+                                    Text("Kapıda Ödeme", fontWeight = FontWeight.Bold)
+                                    Text("Nakit veya Kart ile kapıda ödeme yapabilirsiniz.", fontSize = 12.sp, color = Color.Gray)
+                                }
+                            }
+
+                            // Kredi Kartı Seçeneği
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { viewModel.setPaymentMethod(PaymentMethod.CREDIT_CARD) }
+                                    .padding(vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                RadioButton(
+                                    selected = state.paymentMethod == PaymentMethod.CREDIT_CARD,
+                                    onClick = { viewModel.setPaymentMethod(PaymentMethod.CREDIT_CARD) },
+                                    colors = RadioButtonDefaults.colors(selectedColor = MaterialTheme.colorScheme.primary)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Kredi / Banka Kartı", fontWeight = FontWeight.Bold)
+                            }
+
+                            // Kredi Kartı Formu (Sadece seçiliyse gösterilir)
+                            if (state.paymentMethod == PaymentMethod.CREDIT_CARD) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                
+                                // Kayıtlı Kart / Yeni Kart Seçimi
+                                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                                    FilterChip(
+                                        selected = state.isUsingSavedCard,
+                                        onClick = { viewModel.useSavedCard() },
+                                        label = { Text("Kayıtlı Kartım") },
+                                        leadingIcon = { if (state.isUsingSavedCard) Icon(Icons.Default.Check, null, modifier = Modifier.size(16.dp)) }
+                                    )
+                                    FilterChip(
+                                        selected = !state.isUsingSavedCard,
+                                        onClick = { viewModel.useNewCard() },
+                                        label = { Text("Başka Kart") },
+                                        leadingIcon = { if (!state.isUsingSavedCard) Icon(Icons.Default.Add, null, modifier = Modifier.size(16.dp)) }
+                                    )
+                                }
+
+                                PaymentForm(
+                                    cardNumber = state.cardNumber,
+                                    cvv = state.cvv,
+                                    month = state.expiryMonth,
+                                    year = state.expiryYear,
+                                    onCardInfoChange = { n, c, m, y -> viewModel.updateCardInfo(n, c, m, y) }
+                                )
+                            }
+                        }
                     }
 
                     // 4. Teslimat Zamanı Box

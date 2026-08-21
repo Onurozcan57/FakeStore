@@ -137,9 +137,6 @@ fun HomeScreen(
                     )
                 )
             }
-            
-            item { CampaignSlider(images = campaignImages) }
-
             if (productState.randomProducts.isNotEmpty()) {
                 item {
                     Text(

@@ -23,14 +23,19 @@ class LoginViewModel @Inject constructor(
 
     /**
      * Kullanıcı girişi işlemini başlatıyorum.
+     * Terminoloji: Input Sanitization
+     * Kullanıcının girdiği verileri temizleyerek (trim) gönderiyoruz.
      */
     fun login(username: String, password: String) {
+        val cleanUsername = username.trim()
+        val cleanPassword = password.trim()
+
         viewModelScope.launch {
             _state.value = LoginState(isLoading = true)
             
             try {
                 // Sunucuya login isteği gönderiyorum
-                val loginResponse = userRepository.login(LoginRequest(username, password))
+                val loginResponse = userRepository.login(LoginRequest(cleanUsername, cleanPassword))
                 
                 // Login yanıtında banka bilgileri eksik olduğu için full profili çekiyoruz
                 val fullUser = userRepository.getUser(loginResponse.id)
